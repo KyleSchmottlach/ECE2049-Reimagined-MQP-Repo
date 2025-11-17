@@ -1,3 +1,0 @@
-CompileFlags:
-  CompilationDatabase: D:\School\WPI\Senior-Year\MQP\ECE2049-Reimagined-MQP-Repo\esp32\workspace\blink_manual\build
-  Remove: [-m*, -f*]

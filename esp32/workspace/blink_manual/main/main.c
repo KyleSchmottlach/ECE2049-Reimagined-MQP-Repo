@@ -1,20 +1,18 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <time.h>
 #include <unistd.h>
 #include "driver/gpio.h"
 #include "driver/gptimer.h"
 #include "esp_err.h"
-#include "esp_log.h"
-#include "esp_task_wdt.h"
+#include "esp_timer.h"
 #include "hal/gpio_types.h"
 #include "hal/timer_types.h"
-#include "rom/rtc.h"
 #include "soc/clk_tree_defs.h"
 #include "soc/gpio_num.h"
 #include "soc/gpio_reg.h"
 #include "soc/io_mux_reg.h"
-#include "rtc_wdt.h"
 
 #define REG(REGISTER) ((volatile uint32_t *) (REGISTER))
 
@@ -28,6 +26,8 @@
 #define YELLOW_BUTTON GPIO_NUM_2
 #define GREEN_BUTTON GPIO_NUM_3
 
+#define DEBOUNCE_DELAY_MS 100
+
 
 // Function stubs
 void configure_led_gpio_hal(void);
@@ -36,16 +36,34 @@ void configure_timer(void);
 bool timer_alarm_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx);
 
 void reset_gpio_bare(uint8_t gpio_pin);
-void set_gpio_output(uint8_t gpio_pin);
-void set_gpio_input(uint8_t gpio_pin, bool pullup);
+void config_gpio_output(uint8_t gpio_pin);
+void config_gpio_input(uint8_t gpio_pin, bool pullup);
 
 void switch_led_hal();
 void switch_led_bare();
+
+bool read_button(uint8_t *currReading, uint64_t *lastDebounceTime, uint8_t *buttonState);
 
 uint32_t get_io_mux_from_gpio(uint8_t gpio_pin);
 
 // State variable storing LED state
 static uint32_t led_state = 0;
+
+// Debounce values
+uint64_t lastBlueDebounceTime = 0;
+uint64_t lastRedDebounceTime = 0;
+uint64_t lastYellowDebounceTime = 0;
+uint64_t lastGreenDebounceTime = 0;
+
+uint8_t blueButtonState = 1;
+uint8_t redButtonState = 1;
+uint8_t yellowButtonState = 1;
+uint8_t greenButtonState = 1;
+
+uint8_t lastBlueState = 1;
+uint8_t lastRedState = 1;
+uint8_t lastYellowState = 1;
+uint8_t lastGreenState = 1;
 
 // Timer configuration variables
 gptimer_handle_t gptimer = NULL;
@@ -108,7 +126,7 @@ void reset_gpio_bare(uint8_t gpio_pin) {
 	PIN_PULLUP_DIS(io_mux_register);
 }
 
-void set_gpio_output(uint8_t gpio_pin) {
+void config_gpio_output(uint8_t gpio_pin) {
 	PIN_FUNC_SELECT(get_io_mux_from_gpio(gpio_pin), FUNC_GPIO8_GPIO8);
 
 	*REG(GPIO_FUNC0_OUT_SEL_CFG_REG + 4*gpio_pin) |= 128 & GPIO_FUNC0_OUT_SEL;
@@ -116,7 +134,7 @@ void set_gpio_output(uint8_t gpio_pin) {
 	*REG(GPIO_ENABLE_W1TS_REG) = (1 << gpio_pin);
 }
 
-void set_gpio_input(uint8_t gpio_pin, bool pullup) {
+void config_gpio_input(uint8_t gpio_pin, bool pullup) {
 	*REG(GPIO_FUNC0_IN_SEL_CFG_REG + 4*gpio_pin) |= GPIO_SIG0_IN_SEL;
 	*REG(GPIO_FUNC0_IN_SEL_CFG_REG + 4*gpio_pin) |= (1U << gpio_pin) & GPIO_FUNC0_IN_SEL;
 
@@ -150,15 +168,15 @@ void configure_led_gpio_bare(void) {
 	// *gpio_func8_out_sel_cfg_reg |= GPIO_FUNC8_OEN_SEL;
 	// *gpio_enable_w1ts_reg = (1 << BLUE_LED);
 
-	set_gpio_output(BLUE_LED);
-	set_gpio_output(RED_LED);
-	set_gpio_output(YELLOW_LED);
-	set_gpio_output(GREEN_LED);
+	config_gpio_output(BLUE_LED);
+	config_gpio_output(RED_LED);
+	config_gpio_output(YELLOW_LED);
+	config_gpio_output(GREEN_LED);
 
-	set_gpio_input(BLUE_BUTTON, true);
-	set_gpio_input(RED_BUTTON, true);
-	set_gpio_input(YELLOW_BUTTON, true);
-	set_gpio_input(GREEN_BUTTON, true);
+	config_gpio_input(BLUE_BUTTON, true);
+	config_gpio_input(RED_BUTTON, true);
+	config_gpio_input(YELLOW_BUTTON, true);
+	config_gpio_input(GREEN_BUTTON, true);
 }
 
 
@@ -184,7 +202,7 @@ void configure_timer(void) {
 */
 bool timer_alarm_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx) {
 	// switch_led_hal(); // Switch the LED output every alarm
-	switch_led_bare();
+	// switch_led_bare();
 
 	return false;
 }
@@ -198,6 +216,11 @@ void switch_led_hal() {
 	led_state = !led_state; // Flips the led state
 }
 
+void set_gpio_output_val(uint8_t gpio_pin, bool state) {
+	if(state) *REG(GPIO_OUT_W1TS_REG) |= (1U << gpio_pin);
+	else *REG(GPIO_OUT_W1TC_REG) |= (1U << gpio_pin);
+}
+
 void switch_led_bare() {
 	if(led_state) {
 		*REG(GPIO_OUT_W1TS_REG) |= (1U << BLUE_LED) | (1U << RED_LED) | (1U << YELLOW_LED) | (1U << GREEN_LED);
@@ -208,6 +231,19 @@ void switch_led_bare() {
 	led_state = !led_state;
 }
 
+bool read_button(uint8_t *currReading, uint64_t *lastDebounceTime, uint8_t *buttonState) {
+	bool debouncedState = true;
+
+	if(*currReading != *buttonState) {
+		*buttonState = *currReading;
+		*lastDebounceTime = esp_timer_get_time();
+	} else if((esp_timer_get_time() - *lastDebounceTime) / 1000 > DEBOUNCE_DELAY_MS) {
+		debouncedState = !!(*buttonState);
+	}
+
+	return debouncedState;
+}
+
 void app_main(void)
 {
 	// Configure the led and the timer
@@ -215,39 +251,36 @@ void app_main(void)
 	configure_led_gpio_bare();
 	configure_timer();
 
-	uint8_t lastBlueState = 0;
-	uint8_t lastRedState = 0;
-	uint8_t lastYellowState = 0;
-	uint8_t lastGreenState = 0;
-
 	// Perform a loop 
     while (true) {
-        //sleep(UINT32_MAX); // Sleep the core for the maximum amount of time possible. Alarm events mean the CPU essentially does
+        // sleep(UINT32_MAX); // Sleep the core for the maximum amount of time possible. Alarm events mean the CPU essentially does
 									// no work on its own once they are running
-		static uint32_t count = 0;
 
 		uint32_t input = *REG(GPIO_IN_REG);
-		
-		// if(count % 1000 == 0) printf("Input Register: %u\n", (unsigned int)input);
 
 		uint8_t blueVal = ((input >> BLUE_BUTTON) & 1U);
 		uint8_t redVal = ((input >> RED_BUTTON) & 1U);
 		uint8_t yellowVal = ((input >> YELLOW_BUTTON) & 1U);
 		uint8_t greenVal = ((input >> GREEN_BUTTON) & 1U);
 
-		if(!blueVal && blueVal != lastBlueState) printf("Blue button pressed!");
-		if(!redVal && redVal != lastRedState) printf("Red button pressed!");
-		if(!yellowVal && yellowVal != lastYellowState) printf("Yellow button pressed!");
-		if(!greenVal && greenVal != lastGreenState) printf("Green button pressed!");
+		uint8_t blueButtonPressed = read_button(&blueVal, &lastBlueDebounceTime, &blueButtonState);
+		uint8_t redButtonPressed = read_button(&redVal, &lastRedDebounceTime, &redButtonState);
+		uint8_t yellowButtonPressed = read_button(&yellowVal, &lastYellowDebounceTime, &yellowButtonState);
+		uint8_t greenButtonPressed = read_button(&greenVal, &lastGreenDebounceTime, &greenButtonState);
 
-		lastBlueState = blueVal;
-		lastRedState = redVal;
-		lastYellowState = yellowVal;
-		lastGreenState = greenVal;
+		set_gpio_output_val(BLUE_LED, !blueButtonPressed);
+		set_gpio_output_val(RED_LED, !redButtonPressed);
+		set_gpio_output_val(YELLOW_LED, !yellowButtonPressed);
+		set_gpio_output_val(GREEN_LED, !greenButtonPressed);
 
-		count++;
+		if(!blueButtonPressed && blueButtonPressed != lastBlueState) printf("Blue button pressed!\n");
+		if(!redButtonPressed && redButtonPressed != lastRedState) printf("Red button pressed!\n");
+		if(!yellowButtonPressed && yellowButtonPressed != lastYellowState) printf("Yellow button pressed!\n");
+		if(!greenButtonPressed && greenButtonPressed != lastGreenState) printf("Green button pressed!\n");
 
-		*REG(SUPER_WDT_RESET);
-		usleep(1000);
+		lastBlueState = blueButtonPressed;
+		lastRedState = redButtonPressed;
+		lastYellowState = yellowButtonPressed;
+		lastGreenState = greenButtonPressed;
 	}
 }

@@ -224,6 +224,7 @@ void BSP_PB_Callback(Button_TypeDef Button)
 {
   if (Button == BUTTON_USER)
   {
+	printf("Button pressed!\n\r");
     BspButtonState = BUTTON_PRESSED;
   }
 }

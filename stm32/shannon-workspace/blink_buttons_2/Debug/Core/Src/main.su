@@ -1,0 +1,10 @@
+../Core/Src/main.c:48:6:Init_All_LEDs	40	static
+../Core/Src/main.c:87:6:Toggle_All_LEDs	8	static
+../Core/Src/main.c:99:6:Toggle_Current_LED	8	static
+../Core/Src/main.c:127:6:Turn_Off_All_LEDs	8	static
+../Core/Src/main.c:139:6:HAL_GPIO_EXTI_Callback	24	static
+../Core/Src/main.c:173:6:Manual_Button_Init	32	static
+../Core/Src/main.c:194:5:main	8	static
+../Core/Src/main.c:245:6:SystemClock_Config	88	static
+../Core/Src/main.c:283:13:MX_GPIO_Init	24	static
+../Core/Src/main.c:294:6:Error_Handler	4	static,ignoring_inline_asm

@@ -22,6 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include <stdbool.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -31,6 +33,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#define DEBOUNCE_DELAY_MS 100
 
 /* USER CODE END PD */
 
@@ -42,16 +46,33 @@
 /* Private variables ---------------------------------------------------------*/
 
 COM_InitTypeDef BspCOMInit;
-__IO uint32_t BspButtonState = BUTTON_RELEASED;
 
 /* USER CODE BEGIN PV */
+
+uint64_t lastBlueDebounceTime = 0;
+uint64_t lastRedDebounceTime = 0;
+uint64_t lastYellowDebounceTime = 0;
+uint64_t lastGreenDebounceTime = 0;
+
+uint8_t blueButtonState = 1;
+uint8_t redButtonState = 1;
+uint8_t yellowButtonState = 1;
+uint8_t greenButtonState = 1;
+
+uint8_t lastBlueState = 1;
+uint8_t lastRedState = 1;
+uint8_t lastYellowState = 1;
+uint8_t lastGreenState = 1;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_ICACHE_Init(void);
 /* USER CODE BEGIN PFP */
+
+bool read_button(uint8_t *currReading, uint64_t *lastDebounceTime, uint8_t *buttonState);
 
 /* USER CODE END PFP */
 
@@ -89,6 +110,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_ICACHE_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -110,30 +132,35 @@ int main(void)
     Error_Handler();
   }
 
-  /* USER CODE BEGIN BSP */
-
-  /* -- Sample board code to send message over COM1 port ---- */
-  printf("Welcome to STM32 world !\n\r");
-
-  /* -- Sample board code to switch on leds ---- */
-  BSP_LED_On(LED_GREEN);
-
-  /* USER CODE END BSP */
-
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    uint8_t blueVal = HAL_GPIO_ReadPin(Blue_Button_GPIO_Port, Blue_Button_Pin);
+	  uint8_t redVal = HAL_GPIO_ReadPin(Red_Button_GPIO_Port, Red_Button_Pin);
+	  uint8_t greenVal = HAL_GPIO_ReadPin(Green_Button_GPIO_Port, Green_Button_Pin);
+	  uint8_t yellowVal = HAL_GPIO_ReadPin(Yellow_Button_GPIO_Port, Yellow_Button_Pin);
 
-    /* -- Sample board code for User push-button in interrupt mode ---- */
-    if (BspButtonState == BUTTON_PRESSED)
-    {
-      /* Update button state */
-      BspButtonState = BUTTON_RELEASED;
-      /* -- Sample board code to toggle leds ---- */
-      BSP_LED_Toggle(LED_GREEN);
-      /* ..... Perform your action ..... */
-    }
+	  uint8_t blueButtonPressed = read_button(&blueVal, &lastBlueDebounceTime, &blueButtonState);
+	  uint8_t redButtonPressed = read_button(&redVal, &lastRedDebounceTime, &redButtonState);
+	  uint8_t yellowButtonPressed = read_button(&yellowVal, &lastYellowDebounceTime, &yellowButtonState);
+	  uint8_t greenButtonPressed = read_button(&greenVal, &lastGreenDebounceTime, &greenButtonState);
+
+	  HAL_GPIO_WritePin(Blue_LED_GPIO_Port, Blue_LED_Pin, !blueButtonPressed);
+	  HAL_GPIO_WritePin(Red_LED_GPIO_Port, Red_LED_Pin, !redButtonPressed);
+	  HAL_GPIO_WritePin(Green_LED_GPIO_Port, Green_LED_Pin, !greenButtonPressed);
+	  HAL_GPIO_WritePin(Yellow_LED_GPIO_Port, Yellow_LED_Pin, !yellowButtonPressed);
+
+	  if(!blueButtonPressed && blueButtonPressed != lastBlueState) printf("Blue button pressed!\n\r");
+	  if(!redButtonPressed && redButtonPressed != lastRedState) printf("Red button pressed!\n\r");
+	  if(!greenButtonPressed && greenButtonPressed != lastGreenState) printf("Green button pressed!\n\r");
+	  if(!yellowButtonPressed && yellowButtonPressed != lastYellowState) printf("Yellow button pressed!\n\r");
+
+
+	  lastBlueState = blueButtonPressed;
+	  lastRedState = redButtonPressed;
+	  lastYellowState = yellowButtonPressed;
+	  lastGreenState = greenButtonPressed;
 
     /* USER CODE END WHILE */
 
@@ -192,19 +219,79 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief ICACHE Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ICACHE_Init(void)
+{
+
+  /* USER CODE BEGIN ICACHE_Init 0 */
+
+  /* USER CODE END ICACHE_Init 0 */
+
+  /* USER CODE BEGIN ICACHE_Init 1 */
+
+  /* USER CODE END ICACHE_Init 1 */
+
+  /** Enable instruction cache in 1-way (direct mapped cache)
+  */
+  if (HAL_ICACHE_ConfigAssociativityMode(ICACHE_1WAY) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_ICACHE_Enable() != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ICACHE_Init 2 */
+
+  /* USER CODE END ICACHE_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, Green_LED_Pin|Yellow_LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, Blue_LED_Pin|Red_LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : Green_LED_Pin Yellow_LED_Pin */
+  GPIO_InitStruct.Pin = Green_LED_Pin|Yellow_LED_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Blue_LED_Pin Red_LED_Pin */
+  GPIO_InitStruct.Pin = Blue_LED_Pin|Red_LED_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Red_Button_Pin Green_Button_Pin Blue_Button_Pin Yellow_Button_Pin */
+  GPIO_InitStruct.Pin = Red_Button_Pin|Green_Button_Pin|Blue_Button_Pin|Yellow_Button_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -213,21 +300,20 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-/* USER CODE END 4 */
+bool read_button(uint8_t *currReading, uint64_t *lastDebounceTime, uint8_t *buttonState) {
+	bool debouncedState = true;
 
-/**
-  * @brief  BSP Push Button callback
-  * @param  Button Specifies the pressed button
-  * @retval None
-  */
-void BSP_PB_Callback(Button_TypeDef Button)
-{
-  if (Button == BUTTON_USER)
-  {
-	printf("Button pressed!\n\r");
-    BspButtonState = BUTTON_PRESSED;
-  }
+	if(*currReading != *buttonState) {
+		*buttonState = *currReading;
+		*lastDebounceTime = HAL_GetTick();
+	} else if((HAL_GetTick() - *lastDebounceTime) > DEBOUNCE_DELAY_MS) {
+		debouncedState = !!(*buttonState);
+	}
+
+	return debouncedState;
 }
+
+/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.

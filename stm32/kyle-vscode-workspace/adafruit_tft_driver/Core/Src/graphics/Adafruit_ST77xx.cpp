@@ -24,6 +24,7 @@
 
 #include "Adafruit_ST77xx.h"
 #include <limits.h>
+#include <stdint.h>
 #if !defined(ARDUINO_STM32_FEATHER) && !defined(ARDUINO_UNOR4_WIFI)
 #if !defined(ARDUINO_UNOR4_MINIMA)
 #include "pins_arduino.h"
@@ -92,7 +93,9 @@ Adafruit_ST77xx::Adafruit_ST77xx(uint16_t w, uint16_t h, SPIClass *spiClass,
 /**************************************************************************/
 void Adafruit_ST77xx::displayInit(const uint8_t *addr) {
 
-  uint8_t numCommands, cmd, numArgs;
+  uint8_t numCommands;
+  uint8_t cmd; 
+  uint8_t numArgs;
   uint16_t ms;
 
   numCommands = pgm_read_byte(addr++); // Number of commands to follow

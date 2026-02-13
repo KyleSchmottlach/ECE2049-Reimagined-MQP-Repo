@@ -57,6 +57,12 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/graphics/Adafruit_GFX.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/graphics/Adafruit_SPITFT.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/graphics/Adafruit_ST77xx.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/graphics/Adafruit_ST7735.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/graphics/Print.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/graphics/WString.cpp
 )
 
 # Add include paths

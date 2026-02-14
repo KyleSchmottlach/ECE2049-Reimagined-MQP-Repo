@@ -356,6 +356,7 @@ public:
 #endif // end !USE_FAST_PINIO
   }
 
+  
   /*!
       @brief  Set the data/command line LOW (command mode).
   */

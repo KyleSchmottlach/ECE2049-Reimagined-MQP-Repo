@@ -31,6 +31,8 @@
 #include <Adafruit_SPITFT.h>
 #include <Adafruit_SPITFT_Macros.h>
 
+#define boolean bool // Get around arduino using boolean instead of bool for some reason
+
 #define ST7735_TFTWIDTH_128 128  // for 1.44 and mini
 #define ST7735_TFTWIDTH_80 80    // for mini
 #define ST7735_TFTHEIGHT_128 128 // for 1.44" display

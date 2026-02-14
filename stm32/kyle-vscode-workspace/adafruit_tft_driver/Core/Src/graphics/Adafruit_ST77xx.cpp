@@ -25,13 +25,13 @@
 #include "Adafruit_ST77xx.h"
 #include <limits.h>
 #include <stdint.h>
-#if !defined(ARDUINO_STM32_FEATHER) && !defined(ARDUINO_UNOR4_WIFI)
-#if !defined(ARDUINO_UNOR4_MINIMA)
-#include "pins_arduino.h"
-#include "wiring_private.h"
-#endif
-#endif
-#include <SPI.h>
+// #if !defined(ARDUINO_STM32_FEATHER) && !defined(ARDUINO_UNOR4_WIFI)
+// #if !defined(ARDUINO_UNOR4_MINIMA)
+// #include "pins_arduino.h"
+// #include "wiring_private.h"
+// #endif
+// #endif
+// #include <SPI.h>
 
 #define SPI_DEFAULT_FREQ 32000000 ///< Default SPI data clock frequency
 

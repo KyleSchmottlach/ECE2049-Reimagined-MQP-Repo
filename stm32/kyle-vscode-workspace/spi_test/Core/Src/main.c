@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32h5xx_nucleo.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -44,14 +45,19 @@
 COM_InitTypeDef BspCOMInit;
 
 SPI_HandleTypeDef hspi2;
+DMA_HandleTypeDef handle_GPDMA1_Channel5;
 
 /* USER CODE BEGIN PV */
+
+const uint8_t data[100] = {0x01};
+volatile uint8_t spi_tx_done = 1;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_GPDMA1_Init(void);
 static void MX_ICACHE_Init(void);
 static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
@@ -92,6 +98,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_GPDMA1_Init();
   MX_ICACHE_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
@@ -119,6 +126,17 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    if(spi_tx_done) {
+      // printf("Starting SPI\r\n");
+      BSP_LED_Off(LED_GREEN);
+      HAL_Delay(1000);
+      spi_tx_done = 0;
+      BSP_LED_On(LED_GREEN);
+      HAL_SPI_Transmit_DMA(&hspi2, data, 100);
+    } else {
+      // printf("SPI busy\r\n");
+      BSP_LED_On(LED_GREEN);
+    }
 
     /* USER CODE END WHILE */
 
@@ -188,6 +206,34 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief GPDMA1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPDMA1_Init(void)
+{
+
+  /* USER CODE BEGIN GPDMA1_Init 0 */
+
+  /* USER CODE END GPDMA1_Init 0 */
+
+  /* Peripheral clock enable */
+  __HAL_RCC_GPDMA1_CLK_ENABLE();
+
+  /* GPDMA1 interrupt Init */
+    HAL_NVIC_SetPriority(GPDMA1_Channel5_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel5_IRQn);
+
+  /* USER CODE BEGIN GPDMA1_Init 1 */
+
+  /* USER CODE END GPDMA1_Init 1 */
+  /* USER CODE BEGIN GPDMA1_Init 2 */
+
+  /* USER CODE END GPDMA1_Init 2 */
+
+}
+
+/**
   * @brief ICACHE Initialization Function
   * @param None
   * @retval None
@@ -203,12 +249,8 @@ static void MX_ICACHE_Init(void)
 
   /* USER CODE END ICACHE_Init 1 */
 
-  /** Enable instruction cache in 1-way (direct mapped cache)
+  /** Enable instruction cache (default 2-ways set associative cache)
   */
-  if (HAL_ICACHE_ConfigAssociativityMode(ICACHE_1WAY) != HAL_OK)
-  {
-    Error_Handler();
-  }
   if (HAL_ICACHE_Enable() != HAL_OK)
   {
     Error_Handler();
@@ -238,7 +280,7 @@ static void MX_SPI2_Init(void)
   hspi2.Instance = SPI2;
   hspi2.Init.Mode = SPI_MODE_MASTER;
   hspi2.Init.Direction = SPI_DIRECTION_1LINE;
-  hspi2.Init.DataSize = SPI_DATASIZE_4BIT;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;

@@ -246,6 +246,7 @@ void SPI2_IRQHandler(void)
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
   if(hspi->Instance == SPI2) {
     spi_tx_done = 1;
+    completedTransactionCount++;
   }
 }
 

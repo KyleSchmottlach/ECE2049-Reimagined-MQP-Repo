@@ -20,10 +20,8 @@
 #ifndef _ADAFRUIT_SPITFT_H_
 #define _ADAFRUIT_SPITFT_H_
 
-// Not for ATtiny, at all
-#if !defined(__AVR_ATtiny85__) && !defined(__AVR_ATtiny84__)
-
 #include "Adafruit_GFX.h"
+#include "stm32h533xx.h"
 // #include <SPI.h>
 
 // HARDWARE CONFIG ---------------------------------------------------------
@@ -401,20 +399,9 @@ protected:
   // will be only one of these. The order of some things is a little weird
   // in an attempt to get values to align and pack better in RAM.
 
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-  PORTreg_t csPortSet; ///< PORT register for chip select SET
-  PORTreg_t csPortClr; ///< PORT register for chip select CLEAR
-  PORTreg_t dcPortSet; ///< PORT register for data/command SET
-  PORTreg_t dcPortClr; ///< PORT register for data/command CLEAR
-#else                  // !HAS_PORT_SET_CLR
-  PORTreg_t csPort; ///< PORT register for chip select
-  PORTreg_t dcPort; ///< PORT register for data/command
-#endif                 // end HAS_PORT_SET_CLR
-#endif                 // end USE_FAST_PINIO
-#if defined(__cplusplus) && (__cplusplus >= 201100)
-  union {
-#endif
+// #if defined(__cplusplus) && (__cplusplus >= 201100)
+//   union {
+// #endif
     struct {          //   Values specific to HARDWARE SPI:
       SPIClass *_spi; ///< SPI class pointer
 #if defined(SPI_HAS_TRANSACTION)
@@ -424,111 +411,26 @@ protected:
 #endif
       uint32_t _mode; ///< SPI data mode (transactions or no)
     } hwspi;          ///< Hardware SPI values
-    struct {          //   Values specific to SOFTWARE SPI:
-#if defined(USE_FAST_PINIO)
-      PORTreg_t misoPort; ///< PORT (PIN) register for MISO
-#if defined(HAS_PORT_SET_CLR)
-      PORTreg_t mosiPortSet; ///< PORT register for MOSI SET
-      PORTreg_t mosiPortClr; ///< PORT register for MOSI CLEAR
-      PORTreg_t sckPortSet;  ///< PORT register for SCK SET
-      PORTreg_t sckPortClr;  ///< PORT register for SCK CLEAR
-#if !defined(KINETISK)
-      ADAGFX_PORT_t mosiPinMask; ///< Bitmask for MOSI
-      ADAGFX_PORT_t sckPinMask;  ///< Bitmask for SCK
-#endif                           // end !KINETISK
-#else                            // !HAS_PORT_SET_CLR
-      PORTreg_t mosiPort;           ///< PORT register for MOSI
-      PORTreg_t sckPort;            ///< PORT register for SCK
-      ADAGFX_PORT_t mosiPinMaskSet; ///< Bitmask for MOSI SET (OR)
-      ADAGFX_PORT_t mosiPinMaskClr; ///< Bitmask for MOSI CLEAR (AND)
-      ADAGFX_PORT_t sckPinMaskSet;  ///< Bitmask for SCK SET (OR bitmask)
-      ADAGFX_PORT_t sckPinMaskClr;  ///< Bitmask for SCK CLEAR (AND)
-#endif                           // end HAS_PORT_SET_CLR
-#if !defined(KINETISK)
-      ADAGFX_PORT_t misoPinMask; ///< Bitmask for MISO
-#endif                           // end !KINETISK
-#endif                           // end USE_FAST_PINIO
-      int8_t _mosi;              ///< MOSI pin #
-      int8_t _miso;              ///< MISO pin #
-      int8_t _sck;               ///< SCK pin #
-    } swspi;                     ///< Software SPI values
-    struct {                     //   Values specific to 8-bit parallel:
-#if defined(USE_FAST_PINIO)
-
-#if defined(__IMXRT1052__) || defined(__IMXRT1062__) // Teensy 4.x
-      volatile uint32_t *writePort; ///< PORT register for DATA WRITE
-      volatile uint32_t *readPort;  ///< PORT (PIN) register for DATA READ
-#else
-      volatile uint8_t *writePort; ///< PORT register for DATA WRITE
-      volatile uint8_t *readPort;  ///< PORT (PIN) register for DATA READ
-#endif
-#if defined(HAS_PORT_SET_CLR)
-      // Port direction register pointers are always 8-bit regardless of
-      // PORTreg_t -- even if 32-bit port, we modify a byte-aligned 8 bits.
-#if defined(__IMXRT1052__) || defined(__IMXRT1062__) // Teensy 4.x
-      volatile uint32_t *dirSet; ///< PORT byte data direction SET
-      volatile uint32_t *dirClr; ///< PORT byte data direction CLEAR
-#else
-      volatile uint8_t *dirSet; ///< PORT byte data direction SET
-      volatile uint8_t *dirClr; ///< PORT byte data direction CLEAR
-#endif
-      PORTreg_t wrPortSet; ///< PORT register for write strobe SET
-      PORTreg_t wrPortClr; ///< PORT register for write strobe CLEAR
-      PORTreg_t rdPortSet; ///< PORT register for read strobe SET
-      PORTreg_t rdPortClr; ///< PORT register for read strobe CLEAR
-#if !defined(KINETISK)
-      ADAGFX_PORT_t wrPinMask; ///< Bitmask for write strobe
-#endif                         // end !KINETISK
-      ADAGFX_PORT_t rdPinMask; ///< Bitmask for read strobe
-#else                          // !HAS_PORT_SET_CLR
-      // Port direction register pointer is always 8-bit regardless of
-      // PORTreg_t -- even if 32-bit port, we modify a byte-aligned 8 bits.
-      volatile uint8_t *portDir;  ///< PORT direction register
-      PORTreg_t wrPort;           ///< PORT register for write strobe
-      PORTreg_t rdPort;           ///< PORT register for read strobe
-      ADAGFX_PORT_t wrPinMaskSet; ///< Bitmask for write strobe SET (OR)
-      ADAGFX_PORT_t wrPinMaskClr; ///< Bitmask for write strobe CLEAR (AND)
-      ADAGFX_PORT_t rdPinMaskSet; ///< Bitmask for read strobe SET (OR)
-      ADAGFX_PORT_t rdPinMaskClr; ///< Bitmask for read strobe CLEAR (AND)
-#endif                         // end HAS_PORT_SET_CLR
-#endif                         // end USE_FAST_PINIO
-      int8_t _d0;              ///< Data pin 0 #
-      int8_t _wr;              ///< Write strobe pin #
-      int8_t _rd;              ///< Read strobe pin # (or -1)
-      bool wide = 0;           ///< If true, is 16-bit interface
-    } tft8;                    ///< Parallel interface settings
-#if defined(__cplusplus) && (__cplusplus >= 201100)
-  }; ///< Only one interface is active
-#endif
-#if defined(USE_SPI_DMA) &&                                                    \
-    (defined(__SAMD51__) ||                                                    \
-     defined(ARDUINO_SAMD_ZERO))     // Used by hardware SPI and tft8
-  Adafruit_ZeroDMA dma;              ///< DMA instance
-  DmacDescriptor *dptr = NULL;       ///< 1st descriptor
-  DmacDescriptor *descriptor = NULL; ///< Allocated descriptor list
-  uint16_t *pixelBuf[2];             ///< Working buffers
-  uint16_t maxFillLen;               ///< Max pixels per DMA xfer
-  uint16_t lastFillColor = 0;        ///< Last color used w/fill
-  uint32_t lastFillLen = 0;          ///< # of pixels w/last fill
-  uint8_t onePixelBuf;               ///< For hi==lo fill
-#endif
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-#if !defined(KINETISK)
-  ADAGFX_PORT_t csPinMask; ///< Bitmask for chip select
-  ADAGFX_PORT_t dcPinMask; ///< Bitmask for data/command
-#endif                     // end !KINETISK
-#else                      // !HAS_PORT_SET_CLR
-  ADAGFX_PORT_t csPinMaskSet; ///< Bitmask for chip select SET (OR)
-  ADAGFX_PORT_t csPinMaskClr; ///< Bitmask for chip select CLEAR (AND)
-  ADAGFX_PORT_t dcPinMaskSet; ///< Bitmask for data/command SET (OR)
-  ADAGFX_PORT_t dcPinMaskClr; ///< Bitmask for data/command CLEAR (AND)
-#endif                     // end HAS_PORT_SET_CLR
-#endif                     // end USE_FAST_PINIO
+    // struct {          //   Values specific to SOFTWARE SPI:
+    //   int8_t _mosi;              ///< MOSI pin #
+    //   int8_t _miso;              ///< MISO pin #
+    //   int8_t _sck;               ///< SCK pin #
+    // } swspi;                     ///< Software SPI values
+    // struct {                     //   Values specific to 8-bit parallel:
+    //   int8_t _d0;              ///< Data pin 0 #
+    //   int8_t _wr;              ///< Write strobe pin #
+    //   int8_t _rd;              ///< Read strobe pin # (or -1)
+    //   bool wide = 0;           ///< If true, is 16-bit interface
+    // } tft8;                    ///< Parallel interface settings
+// #if defined(__cplusplus) && (__cplusplus >= 201100)
+//   }; ///< Only one interface is active
+// #endif                    // end USE_FAST_PINIO
   uint8_t connection;      ///< TFT_HARD_SPI, TFT_SOFT_SPI, etc.
   int8_t _rst;             ///< Reset pin # (or -1)
-  int8_t _cs;              ///< Chip select pin # (or -1)
-  int8_t _dc;              ///< Data/command pin #
+  int16_t _cs_pin;              ///< Chip select pin # (or -1)
+  GPIO_TypeDef *_cs_port;         ///< Chip select GPIO Port
+  int16_t _dc_pin;              ///< Data/command pin #
+  GPIO_TypeDef *_dc_port;       ///< Data/command GPIO Port
 
   int16_t _xstart = 0;          ///< Internal framebuffer X offset
   int16_t _ystart = 0;          ///< Internal framebuffer Y offset
@@ -538,5 +440,4 @@ protected:
   uint32_t _freq = 0; ///< Dummy var to keep subclasses happy
 };
 
-#endif // end __AVR_ATtiny85__ __AVR_ATtiny84__
 #endif // end _ADAFRUIT_SPITFT_H_

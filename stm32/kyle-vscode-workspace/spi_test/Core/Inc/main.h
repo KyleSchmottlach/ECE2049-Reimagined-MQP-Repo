@@ -46,6 +46,7 @@ extern "C" {
 /* USER CODE BEGIN EC */
 
 extern volatile uint8_t spi_tx_done;
+extern volatile uint32_t completedTransactionCount;
 
 /* USER CODE END EC */
 

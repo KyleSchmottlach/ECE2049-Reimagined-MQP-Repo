@@ -18,7 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32h5xx_hal_def.h"
 #include "stm32h5xx_nucleo.h"
+#include <stdint.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -51,6 +53,10 @@ DMA_HandleTypeDef handle_GPDMA1_Channel5;
 
 const uint8_t data[100] = {0x01};
 volatile uint8_t spi_tx_done = 1;
+
+uint32_t waitingCount = 0;
+uint32_t newTransactionCount = 0;
+volatile uint32_t completedTransactionCount = 0;
 
 /* USER CODE END PV */
 
@@ -127,14 +133,17 @@ int main(void)
   while (1)
   {
     if(spi_tx_done) {
+      newTransactionCount++;
       // printf("Starting SPI\r\n");
       BSP_LED_Off(LED_GREEN);
-      HAL_Delay(1000);
+      // HAL_Delay(1000);
       spi_tx_done = 0;
       BSP_LED_On(LED_GREEN);
-      HAL_SPI_Transmit_DMA(&hspi2, data, 100);
+      HAL_StatusTypeDef status = HAL_SPI_Transmit_DMA(&hspi2, data, 100);
+      printf("%d\r\n", status);
     } else {
-      // printf("SPI busy\r\n");
+      printf("SPI busy\r\n");
+      waitingCount++;
       BSP_LED_On(LED_GREEN);
     }
 

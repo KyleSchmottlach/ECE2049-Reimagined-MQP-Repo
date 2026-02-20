@@ -33,6 +33,7 @@
  */
 
 #include "Adafruit_SPITFT.h"
+#include "stm32h533xx.h"
 #include "stm32h5xx_hal_gpio.h"
 
 // Possible values for Adafruit_SPITFT.connection:
@@ -63,11 +64,11 @@
              GPIO manually. Do this BEFORE calling the display-specific
              begin or init function. Unfortunate but unavoidable.
 */
-Adafruit_SPITFT::Adafruit_SPITFT(uint16_t w, uint16_t h, SPIClass *spiClass,
-                                 int8_t cs, int8_t dc, int8_t rst)
-    : Adafruit_GFX(w, h), connection(TFT_HARD_SPI), _rst(rst), _cs(cs),
-      _dc(dc) {
-  hwspi._spi = spiClass;
+Adafruit_SPITFT::Adafruit_SPITFT(uint16_t w, uint16_t h, SPI_HandleTypeDef *spiHandle,
+                                 int16_t cs_pin, GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, int8_t rst)
+    : Adafruit_GFX(w, h), connection(TFT_HARD_SPI), _rst(rst), _cs_pin(cs_pin), 
+    _cs_port(cs_port), _dc_pin(dc), _dc_port(dc_port) {
+  hwspi._spi = spiHandle;
 }
 
 // end constructors -------
@@ -93,17 +94,16 @@ Adafruit_SPITFT::Adafruit_SPITFT(uint16_t w, uint16_t h, SPIClass *spiClass,
             could probably be made private...quite a few class functions
             were generously put in the public section.
 */
-void Adafruit_SPITFT::initSPI(uint32_t freq, uint8_t spiMode) {
+void Adafruit_SPITFT::initSPI(uint32_t freq) {
 
   if (!freq)
     freq = DEFAULT_SPI_FREQ; // If no freq specified, use default
 
   // Init basic control pins common to all connection types
-  if (_cs >= 0) {
-    HAL_GPIO_WritePin(_cs, HIGH); // Deselect
+  if (_cs_pin >= 0) {
+    HAL_GPIO_WritePin(_cs_port, _cs_pin, GPIO_PIN_SET); // Deselect
   }
-  pinMode(_dc, OUTPUT);
-  digitalWrite(_dc, HIGH); // Data mode
+  HAL_GPIO_WritePin(_dc_port, _dc_pin, GPIO_PIN_SET); // Data mode
 
   if (connection == TFT_HARD_SPI) {
 
@@ -112,7 +112,6 @@ void Adafruit_SPITFT::initSPI(uint32_t freq, uint8_t spiMode) {
 #else
     hwspi._freq = freq; // Save freq value for later
 #endif
-    hwspi._mode = spiMode; // Save spiMode value for later
     // Call hwspi._spi->begin() ONLY if this is among the 'established'
     // SPI interfaces in variant.h. For DIY roll-your-own SERCOM SPIs,
     // begin() and pinPeripheral() calls MUST be made in one's calling
@@ -151,7 +150,7 @@ void Adafruit_SPITFT::setSPISpeed(uint32_t freq) {
 */
 void Adafruit_SPITFT::startWrite(void) {
   SPI_BEGIN_TRANSACTION();
-  if (_cs >= 0)
+  if (_cs_pin >= 0)
     SPI_CS_LOW();
 }
 
@@ -162,7 +161,7 @@ void Adafruit_SPITFT::startWrite(void) {
             for all display types; not an SPI-specific function.
 */
 void Adafruit_SPITFT::endWrite(void) {
-  if (_cs >= 0)
+  if (_cs_pin >= 0)
     SPI_CS_HIGH();
   SPI_END_TRANSACTION();
 }
@@ -270,18 +269,7 @@ void Adafruit_SPITFT::writePixels(uint16_t *colors, uint32_t len, bool block,
             was used (as is the default case).
 */
 void Adafruit_SPITFT::dmaWait(void) {
-#if defined(USE_SPI_DMA) && (defined(__SAMD51__) || defined(ARDUINO_SAMD_ZERO))
-  while (dma_busy)
-    ;
-#if defined(__SAMD51__) || defined(ARDUINO_SAMD_ZERO)
-  if (connection == TFT_HARD_SPI) {
-    // See SAMD51/21 note in writeColor()
-    hwspi._spi->setDataMode(hwspi._mode);
-  } else {
-    pinPeripheral(tft8._wr, PIO_OUTPUT); // Switch WR back to GPIO
-  }
-#endif // end __SAMD51__ || ARDUINO_SAMD_ZERO
-#endif
+
 }
 
 /*!
@@ -310,310 +298,12 @@ void Adafruit_SPITFT::writeColor(uint16_t color, uint32_t len) {
 
   uint8_t hi = color >> 8, lo = color;
 
-#if defined(ESP32) // ESP32 has a special SPI pixel-writing function...
-  if (connection == TFT_HARD_SPI) {
-#define SPI_MAX_PIXELS_AT_ONCE 32
-#define TMPBUF_LONGWORDS (SPI_MAX_PIXELS_AT_ONCE + 1) / 2
-#define TMPBUF_PIXELS (TMPBUF_LONGWORDS * 2)
-    static uint32_t temp[TMPBUF_LONGWORDS];
-    uint32_t c32 = color * 0x00010001;
-    uint16_t bufLen = (len < TMPBUF_PIXELS) ? len : TMPBUF_PIXELS, xferLen,
-             fillLen;
-    // Fill temp buffer 32 bits at a time
-    fillLen = (bufLen + 1) / 2; // Round up to next 32-bit boundary
-    for (uint32_t t = 0; t < fillLen; t++) {
-      temp[t] = c32;
-    }
-    // Issue pixels in blocks from temp buffer
-    while (len) {                              // While pixels remain
-      xferLen = (bufLen < len) ? bufLen : len; // How many this pass?
-      writePixels((uint16_t *)temp, xferLen);
-      len -= xferLen;
-    }
-    return;
-  }
-#elif defined(ARDUINO_NRF52_ADAFRUIT) &&                                       \
-    defined(NRF52840_XXAA) // Adafruit nRF52840 use SPIM3 DMA at 32Mhz
-  // at most 2 scan lines
-  uint32_t const pixbufcount = min(len, ((uint32_t)2 * width()));
-  uint16_t *pixbuf = (uint16_t *)rtos_malloc(2 * pixbufcount);
-
-  // use SPI3 DMA if we could allocate buffer, else fall back to writing each
-  // pixel loop below
-  if (pixbuf) {
-    uint16_t const swap_color = __builtin_bswap16(color);
-
-    // fill buffer with color
-    for (uint32_t i = 0; i < pixbufcount; i++) {
-      pixbuf[i] = swap_color;
-    }
-
-    while (len) {
-      uint32_t const count = min(len, pixbufcount);
-      writePixels(pixbuf, count, true, true);
-      len -= count;
-    }
-
-    rtos_free(pixbuf);
-    return;
-  }
-#elif defined(ARDUINO_ARCH_RTTHREAD)
-  uint16_t pixbufcount;
-  uint16_t *pixbuf;
-  int16_t lines = height() / 4;
-#define QUICKPATH_MAX_LEN 16
-  uint16_t quickpath_buffer[QUICKPATH_MAX_LEN];
-
-  do {
-    pixbufcount = min(len, (lines * width()));
-    if (pixbufcount > QUICKPATH_MAX_LEN) {
-      pixbuf = (uint16_t *)rt_malloc(2 * pixbufcount);
-    } else {
-      pixbuf = quickpath_buffer;
-    }
-    lines -= 2;
-  } while (!pixbuf && lines > 0);
-
-  if (pixbuf) {
-    uint16_t const swap_color = __builtin_bswap16(color);
-
-    while (len) {
-      uint16_t count = min(len, pixbufcount);
-      // fill buffer with color
-      for (uint16_t i = 0; i < count; i++) {
-        pixbuf[i] = swap_color;
-      }
-      // Don't need to swap color inside the function
-      // It has been done outside this function
-      writePixels(pixbuf, count, true, true);
-      len -= count;
-    }
-    if (pixbufcount > QUICKPATH_MAX_LEN) {
-      rt_free(pixbuf);
-    }
-#undef QUICKPATH_MAX_LEN
-    return;
-  }
-#else // !ESP32
-#if defined(USE_SPI_DMA) && (defined(__SAMD51__) || defined(ARDUINO_SAMD_ZERO))
-  if (((connection == TFT_HARD_SPI) || (connection == TFT_PARALLEL)) &&
-      (len >= 16)) { // Don't bother with DMA on short pixel runs
-    int i, d, numDescriptors;
-    if (hi == lo) { // If high & low bytes are same...
-      onePixelBuf = color;
-      // Can do this with a relatively short descriptor list,
-      // each transferring a max of 32,767 (not 32,768) pixels.
-      // This won't run off the end of the allocated descriptor list,
-      // since we're using much larger chunks per descriptor here.
-      numDescriptors = (len + 32766) / 32767;
-      for (d = 0; d < numDescriptors; d++) {
-        int count = (len < 32767) ? len : 32767;
-        descriptor[d].SRCADDR.reg = (uint32_t)&onePixelBuf;
-        descriptor[d].BTCTRL.bit.SRCINC = 0;
-        descriptor[d].BTCNT.reg = count * 2;
-        descriptor[d].DESCADDR.reg = (uint32_t)&descriptor[d + 1];
-        len -= count;
-      }
-      descriptor[d - 1].DESCADDR.reg = 0;
-    } else {
-      // If high and low bytes are distinct, it's necessary to fill
-      // a buffer with pixel data (swapping high and low bytes because
-      // TFT and SAMD are different endianisms) and create a longer
-      // descriptor list pointing repeatedly to this data. We can do
-      // this slightly faster working 2 pixels (32 bits) at a time.
-      uint32_t *pixelPtr = (uint32_t *)pixelBuf[0],
-               twoPixels = __builtin_bswap16(color) * 0x00010001;
-      // We can avoid some or all of the buffer-filling if the color
-      // is the same as last time...
-      if (color == lastFillColor) {
-        // If length is longer than prior instance, fill only the
-        // additional pixels in the buffer and update lastFillLen.
-        if (len > lastFillLen) {
-          int fillStart = lastFillLen / 2,
-              fillEnd = (((len < maxFillLen) ? len : maxFillLen) + 1) / 2;
-          for (i = fillStart; i < fillEnd; i++)
-            pixelPtr[i] = twoPixels;
-          lastFillLen = fillEnd * 2;
-        } // else do nothing, don't set pixels or change lastFillLen
-      } else {
-        int fillEnd = (((len < maxFillLen) ? len : maxFillLen) + 1) / 2;
-        for (i = 0; i < fillEnd; i++)
-          pixelPtr[i] = twoPixels;
-        lastFillLen = fillEnd * 2;
-        lastFillColor = color;
-      }
-
-      numDescriptors = (len + maxFillLen - 1) / maxFillLen;
-      for (d = 0; d < numDescriptors; d++) {
-        int pixels = (len < maxFillLen) ? len : maxFillLen, bytes = pixels * 2;
-        descriptor[d].SRCADDR.reg = (uint32_t)pixelPtr + bytes;
-        descriptor[d].BTCTRL.bit.SRCINC = 1;
-        descriptor[d].BTCNT.reg = bytes;
-        descriptor[d].DESCADDR.reg = (uint32_t)&descriptor[d + 1];
-        len -= pixels;
-      }
-      descriptor[d - 1].DESCADDR.reg = 0;
-    }
-    memcpy(dptr, &descriptor[0], sizeof(DmacDescriptor));
-#if defined(__SAMD51__)
-    if (connection == TFT_PARALLEL) {
-      // Switch WR pin to PWM or CCL
-      pinPeripheral(tft8._wr, wrPeripheral);
-    }
-#endif // end __SAMD51__
-
-    dma_busy = true;
-    dma.startJob();
-    if (connection == TFT_PARALLEL)
-      dma.trigger();
-    while (dma_busy)
-      ; // Wait for completion
-        // Unfortunately blocking is necessary. An earlier version returned
-        // immediately and checked dma_busy on startWrite() instead, but it
-        // turns out to be MUCH slower on many graphics operations (as when
-        // drawing lines, pixel-by-pixel), perhaps because it's a volatile
-        // type and doesn't cache. Working on this.
-#if defined(__SAMD51__) || defined(ARDUINO_SAMD_ZERO)
-    if (connection == TFT_HARD_SPI) {
-      // SAMD51: SPI DMA seems to leave the SPI peripheral in a freaky
-      // state on completion. Workaround is to explicitly set it back...
-      // (5/17/2019: apparently SAMD21 too, in certain cases, observed
-      // with ST7789 display.)
-      hwspi._spi->setDataMode(hwspi._mode);
-    } else {
-      pinPeripheral(tft8._wr, PIO_OUTPUT); // Switch WR back to GPIO
-    }
-#endif // end __SAMD51__
-    return;
-  }
-#endif // end USE_SPI_DMA
-#endif // end !ESP32
-
   // All other cases (non-DMA hard SPI, bitbang SPI, parallel)...
 
   if (connection == TFT_HARD_SPI) {
-#if defined(ESP8266)
-    do {
-      uint32_t pixelsThisPass = len;
-      if (pixelsThisPass > 50000)
-        pixelsThisPass = 50000;
-      len -= pixelsThisPass;
-      delay(1); // Periodic delay on long fills
-      while (pixelsThisPass--) {
-        hwspi._spi->write(hi);
-        hwspi._spi->write(lo);
-      }
-    } while (len);
-#elif defined(ARDUINO_ARCH_RP2040)
-    spi_inst_t *pi_spi = hwspi._spi == &SPI ? __SPI0_DEVICE : __SPI1_DEVICE;
-    color = __builtin_bswap16(color);
-
-    while (len--)
-      spi_write_blocking(pi_spi, (uint8_t *)&color, 2);
-#else // !ESP8266 && !ARDUINO_ARCH_RP2040
     while (len--) {
-#if defined(__AVR__)
-      AVR_WRITESPI(hi);
-      AVR_WRITESPI(lo);
-#elif defined(ESP32)
-      hwspi._spi->write(hi);
-      hwspi._spi->write(lo);
-#else
       hwspi._spi->transfer(hi);
       hwspi._spi->transfer(lo);
-#endif
-    }
-#endif // end !ESP8266
-  } else if (connection == TFT_SOFT_SPI) {
-#if defined(ESP8266)
-    do {
-      uint32_t pixelsThisPass = len;
-      if (pixelsThisPass > 20000)
-        pixelsThisPass = 20000;
-      len -= pixelsThisPass;
-      yield(); // Periodic yield() on long fills
-      while (pixelsThisPass--) {
-        for (uint16_t bit = 0, x = color; bit < 16; bit++) {
-          if (x & 0x8000)
-            SPI_MOSI_HIGH();
-          else
-            SPI_MOSI_LOW();
-          SPI_SCK_HIGH();
-          SPI_SCK_LOW();
-          x <<= 1;
-        }
-      }
-    } while (len);
-#else // !ESP8266
-    while (len--) {
-#if defined(__AVR__)
-      for (uint8_t bit = 0, x = hi; bit < 8; bit++) {
-        if (x & 0x80)
-          SPI_MOSI_HIGH();
-        else
-          SPI_MOSI_LOW();
-        SPI_SCK_HIGH();
-        SPI_SCK_LOW();
-        x <<= 1;
-      }
-      for (uint8_t bit = 0, x = lo; bit < 8; bit++) {
-        if (x & 0x80)
-          SPI_MOSI_HIGH();
-        else
-          SPI_MOSI_LOW();
-        SPI_SCK_HIGH();
-        SPI_SCK_LOW();
-        x <<= 1;
-      }
-#else      // !__AVR__
-      for (uint16_t bit = 0, x = color; bit < 16; bit++) {
-        if (x & 0x8000)
-          SPI_MOSI_HIGH();
-        else
-          SPI_MOSI_LOW();
-        SPI_SCK_HIGH();
-        x <<= 1;
-        SPI_SCK_LOW();
-      }
-#endif     // end !__AVR__
-    }
-#endif     // end !ESP8266
-  } else { // PARALLEL
-    if (hi == lo) {
-#if defined(__AVR__)
-      len *= 2;
-      *tft8.writePort = hi;
-      while (len--) {
-        TFT_WR_STROBE();
-      }
-#elif defined(USE_FAST_PINIO)
-      if (!tft8.wide) {
-        len *= 2;
-        *tft8.writePort = hi;
-      } else {
-        *(volatile uint16_t *)tft8.writePort = color;
-      }
-      while (len--) {
-        TFT_WR_STROBE();
-      }
-#endif
-    } else {
-      while (len--) {
-#if defined(__AVR__)
-        *tft8.writePort = hi;
-        TFT_WR_STROBE();
-        *tft8.writePort = lo;
-#elif defined(USE_FAST_PINIO)
-        if (!tft8.wide) {
-          *tft8.writePort = hi;
-          TFT_WR_STROBE();
-          *tft8.writePort = lo;
-        } else {
-          *(volatile uint16_t *)tft8.writePort = color;
-        }
-#endif
-        TFT_WR_STROBE();
-      }
     }
   }
 }
@@ -1051,7 +741,7 @@ data
 void Adafruit_SPITFT::sendCommand(uint8_t commandByte, uint8_t *dataBytes,
                                   uint8_t numDataBytes) {
   SPI_BEGIN_TRANSACTION();
-  if (_cs >= 0)
+  if (_cs_pin >= 0)
     SPI_CS_LOW();
 
   SPI_DC_LOW();          // Command mode
@@ -1059,16 +749,11 @@ void Adafruit_SPITFT::sendCommand(uint8_t commandByte, uint8_t *dataBytes,
 
   SPI_DC_HIGH();
   for (int i = 0; i < numDataBytes; i++) {
-    if ((connection == TFT_PARALLEL) && tft8.wide) {
-      SPI_WRITE16(*(uint16_t *)dataBytes);
-      dataBytes += 2;
-    } else {
-      spiWrite(*dataBytes); // Send the data bytes
-      dataBytes++;
-    }
+    spiWrite(*dataBytes); // Send the data bytes
+    dataBytes++;
   }
 
-  if (_cs >= 0)
+  if (_cs_pin >= 0)
     SPI_CS_HIGH();
   SPI_END_TRANSACTION();
 }
@@ -1083,7 +768,7 @@ void Adafruit_SPITFT::sendCommand(uint8_t commandByte, uint8_t *dataBytes,
 void Adafruit_SPITFT::sendCommand(uint8_t commandByte, const uint8_t *dataBytes,
                                   uint8_t numDataBytes) {
   SPI_BEGIN_TRANSACTION();
-  if (_cs >= 0)
+  if (_cs_pin >= 0)
     SPI_CS_LOW();
 
   SPI_DC_LOW();          // Command mode
@@ -1091,15 +776,10 @@ void Adafruit_SPITFT::sendCommand(uint8_t commandByte, const uint8_t *dataBytes,
 
   SPI_DC_HIGH();
   for (int i = 0; i < numDataBytes; i++) {
-    if ((connection == TFT_PARALLEL) && tft8.wide) {
-      SPI_WRITE16(*(uint16_t *)dataBytes);
-      dataBytes += 2;
-    } else {
-      spiWrite(pgm_read_byte(dataBytes++));
-    }
+    spiWrite(pgm_read_byte(dataBytes++));
   }
 
-  if (_cs >= 0)
+  if (_cs_pin >= 0)
     SPI_CS_HIGH();
   SPI_END_TRANSACTION();
 }
@@ -1119,7 +799,7 @@ void Adafruit_SPITFT::sendCommand16(uint16_t commandWord,
                                     const uint8_t *dataBytes,
                                     uint8_t numDataBytes) {
   SPI_BEGIN_TRANSACTION();
-  if (_cs >= 0)
+  if (_cs_pin >= 0)
     SPI_CS_LOW();
 
   if (numDataBytes == 0) {
@@ -1135,7 +815,7 @@ void Adafruit_SPITFT::sendCommand16(uint16_t commandWord,
     SPI_WRITE16((uint16_t)pgm_read_byte(dataBytes++));
   }
 
-  if (_cs >= 0)
+  if (_cs_pin >= 0)
     SPI_CS_HIGH();
   SPI_END_TRANSACTION();
 }
@@ -1170,33 +850,33 @@ uint8_t Adafruit_SPITFT::readcommand8(uint8_t commandByte, uint8_t index) {
  @param   addr  Command/register to access.
  @return  Unsigned 16-bit data.
  */
-uint16_t Adafruit_SPITFT::readcommand16(uint16_t addr) {
-#if defined(USE_FAST_PINIO) // NOT SUPPORTED without USE_FAST_PINIO
-  uint16_t result = 0;
-  if ((connection == TFT_PARALLEL) && tft8.wide) {
-    startWrite();
-    SPI_DC_LOW(); // Command mode
-    SPI_WRITE16(addr);
-    SPI_DC_HIGH(); // Data mode
-    TFT_RD_LOW();  // Read line LOW
-#if defined(HAS_PORT_SET_CLR)
-    *(volatile uint16_t *)tft8.dirClr = 0xFFFF;   // Input state
-    result = *(volatile uint16_t *)tft8.readPort; // 16-bit read
-    *(volatile uint16_t *)tft8.dirSet = 0xFFFF;   // Output state
-#else                                             // !HAS_PORT_SET_CLR
-    *(volatile uint16_t *)tft8.portDir = 0x0000;  // Input state
-    result = *(volatile uint16_t *)tft8.readPort; // 16-bit read
-    *(volatile uint16_t *)tft8.portDir = 0xFFFF;  // Output state
-#endif                                            // end !HAS_PORT_SET_CLR
-    TFT_RD_HIGH();                                // Read line HIGH
-    endWrite();
-  }
-  return result;
-#else
-  (void)addr; // disable -Wunused-parameter warning
-  return 0;
-#endif // end !USE_FAST_PINIO
-}
+// uint16_t Adafruit_SPITFT::readcommand16(uint16_t addr) {
+// #if defined(USE_FAST_PINIO) // NOT SUPPORTED without USE_FAST_PINIO
+//   uint16_t result = 0;
+//   if ((connection == TFT_PARALLEL) && tft8.wide) {
+//     startWrite();
+//     SPI_DC_LOW(); // Command mode
+//     SPI_WRITE16(addr);
+//     SPI_DC_HIGH(); // Data mode
+//     TFT_RD_LOW();  // Read line LOW
+// #if defined(HAS_PORT_SET_CLR)
+//     *(volatile uint16_t *)tft8.dirClr = 0xFFFF;   // Input state
+//     result = *(volatile uint16_t *)tft8.readPort; // 16-bit read
+//     *(volatile uint16_t *)tft8.dirSet = 0xFFFF;   // Output state
+// #else                                             // !HAS_PORT_SET_CLR
+//     *(volatile uint16_t *)tft8.portDir = 0x0000;  // Input state
+//     result = *(volatile uint16_t *)tft8.readPort; // 16-bit read
+//     *(volatile uint16_t *)tft8.portDir = 0xFFFF;  // Output state
+// #endif                                            // end !HAS_PORT_SET_CLR
+//     TFT_RD_HIGH();                                // Read line HIGH
+//     endWrite();
+//   }
+//   return result;
+// #else
+//   (void)addr; // disable -Wunused-parameter warning
+//   return 0;
+// #endif // end !USE_FAST_PINIO
+// }
 
 // -------------------------------------------------------------------------
 // Lowest-level hardware-interfacing functions. Many of these are inline and
@@ -1212,25 +892,25 @@ uint16_t Adafruit_SPITFT::readcommand16(uint16_t addr) {
             chip-select operation -- see startWrite() for a function that
             encapsulated both actions.
 */
-inline void Adafruit_SPITFT::SPI_BEGIN_TRANSACTION(void) {
-  if (connection == TFT_HARD_SPI) {
-#if defined(SPI_HAS_TRANSACTION)
-    hwspi._spi->beginTransaction(hwspi.settings);
-#else // No transactions, configure SPI manually...
-#if defined(__AVR__) || defined(TEENSYDUINO) || defined(ARDUINO_ARCH_STM32F1)
-    hwspi._spi->setClockDivider(SPI_CLOCK_DIV2);
-#elif defined(__arm__)
-    hwspi._spi->setClockDivider(11);
-#elif defined(ESP8266) || defined(ESP32)
-    hwspi._spi->setFrequency(hwspi._freq);
-#elif defined(RASPI) || defined(ARDUINO_ARCH_STM32F1)
-    hwspi._spi->setClock(hwspi._freq);
-#endif
-    hwspi._spi->setBitOrder(MSBFIRST);
-    hwspi._spi->setDataMode(hwspi._mode);
-#endif // end !SPI_HAS_TRANSACTION
-  }
-}
+// inline void Adafruit_SPITFT::SPI_BEGIN_TRANSACTION(void) {
+//   if (connection == TFT_HARD_SPI) {
+// #if defined(SPI_HAS_TRANSACTION)
+//     hwspi._spi->beginTransaction(hwspi.settings);
+// #else // No transactions, configure SPI manually...
+// #if defined(__AVR__) || defined(TEENSYDUINO) || defined(ARDUINO_ARCH_STM32F1)
+//     hwspi._spi->setClockDivider(SPI_CLOCK_DIV2);
+// #elif defined(__arm__)
+//     hwspi._spi->setClockDivider(11);
+// #elif defined(ESP8266) || defined(ESP32)
+//     hwspi._spi->setFrequency(hwspi._freq);
+// #elif defined(RASPI) || defined(ARDUINO_ARCH_STM32F1)
+//     hwspi._spi->setClock(hwspi._freq);
+// #endif
+//     hwspi._spi->setBitOrder(MSBFIRST);
+//     hwspi._spi->setDataMode(hwspi._mode);
+// #endif // end !SPI_HAS_TRANSACTION
+//   }
+// }
 
 /*!
     @brief  End an SPI transaction if using the hardware SPI interface to
@@ -1240,13 +920,13 @@ inline void Adafruit_SPITFT::SPI_BEGIN_TRANSACTION(void) {
             NOT include a chip-deselect operation -- see endWrite() for a
             function that encapsulated both actions.
 */
-inline void Adafruit_SPITFT::SPI_END_TRANSACTION(void) {
-#if defined(SPI_HAS_TRANSACTION)
-  if (connection == TFT_HARD_SPI) {
-    hwspi._spi->endTransaction();
-  }
-#endif
-}
+// inline void Adafruit_SPITFT::SPI_END_TRANSACTION(void) {
+// #if defined(SPI_HAS_TRANSACTION)
+//   if (connection == TFT_HARD_SPI) {
+//     hwspi._spi->endTransaction();
+//   }
+// #endif
+// }
 
 /*!
     @brief  Issue a single 8-bit value to the display. Chip-select,
@@ -1258,38 +938,7 @@ inline void Adafruit_SPITFT::SPI_END_TRANSACTION(void) {
     @param  b  8-bit value to write.
 */
 void Adafruit_SPITFT::spiWrite(uint8_t b) {
-  if (connection == TFT_HARD_SPI) {
-#if defined(__AVR__)
-    AVR_WRITESPI(b);
-#elif defined(ESP8266) || defined(ESP32)
-    hwspi._spi->write(b);
-#elif defined(ARDUINO_ARCH_RP2040)
-    spi_inst_t *pi_spi = hwspi._spi == &SPI ? __SPI0_DEVICE : __SPI1_DEVICE;
-    spi_write_blocking(pi_spi, &b, 1);
-#else
     hwspi._spi->transfer(b);
-#endif
-  } else if (connection == TFT_SOFT_SPI) {
-    for (uint8_t bit = 0; bit < 8; bit++) {
-      if (b & 0x80)
-        SPI_MOSI_HIGH();
-      else
-        SPI_MOSI_LOW();
-      SPI_SCK_HIGH();
-      b <<= 1;
-      SPI_SCK_LOW();
-    }
-  } else { // TFT_PARALLEL
-#if defined(__AVR__)
-    *tft8.writePort = b;
-#elif defined(USE_FAST_PINIO)
-    if (!tft8.wide)
-      *tft8.writePort = b;
-    else
-      *(volatile uint16_t *)tft8.writePort = b;
-#endif
-    TFT_WR_STROBE();
-  }
 }
 
 /*!
@@ -1319,57 +968,7 @@ void Adafruit_SPITFT::writeCommand(uint8_t cmd) {
 uint8_t Adafruit_SPITFT::spiRead(void) {
   uint8_t b = 0;
   uint16_t w = 0;
-  if (connection == TFT_HARD_SPI) {
-    return hwspi._spi->transfer((uint8_t)0);
-  } else if (connection == TFT_SOFT_SPI) {
-    if (swspi._miso >= 0) {
-      for (uint8_t i = 0; i < 8; i++) {
-        SPI_SCK_HIGH();
-        b <<= 1;
-        if (SPI_MISO_READ())
-          b++;
-        SPI_SCK_LOW();
-      }
-    }
-    return b;
-  } else { // TFT_PARALLEL
-    if (tft8._rd >= 0) {
-#if defined(USE_FAST_PINIO)
-      TFT_RD_LOW(); // Read line LOW
-#if defined(__AVR__)
-      *tft8.portDir = 0x00; // Set port to input state
-      w = *tft8.readPort;   // Read value from port
-      *tft8.portDir = 0xFF; // Restore port to output
-#else                       // !__AVR__
-      if (!tft8.wide) { // 8-bit TFT connection
-#if defined(HAS_PORT_SET_CLR)
-        *tft8.dirClr = 0xFF; // Set port to input state
-        w = *tft8.readPort;  // Read value from port
-        *tft8.dirSet = 0xFF; // Restore port to output
-#else  // !HAS_PORT_SET_CLR
-        *tft8.portDir = 0x00; // Set port to input state
-        w = *tft8.readPort;   // Read value from port
-        *tft8.portDir = 0xFF; // Restore port to output
-#endif // end HAS_PORT_SET_CLR
-      } else { // 16-bit TFT connection
-#if defined(HAS_PORT_SET_CLR)
-        *(volatile uint16_t *)tft8.dirClr = 0xFFFF; // Input state
-        w = *(volatile uint16_t *)tft8.readPort;    // 16-bit read
-        *(volatile uint16_t *)tft8.dirSet = 0xFFFF; // Output state
-#else  // !HAS_PORT_SET_CLR
-        *(volatile uint16_t *)tft8.portDir = 0x0000; // Input state
-        w = *(volatile uint16_t *)tft8.readPort;     // 16-bit read
-        *(volatile uint16_t *)tft8.portDir = 0xFFFF; // Output state
-#endif // end !HAS_PORT_SET_CLR
-      }
-      TFT_RD_HIGH(); // Read line HIGH
-#endif // end !__AVR__
-#else  // !USE_FAST_PINIO
-      w = 0; // Parallel TFT is NOT SUPPORTED without USE_FAST_PINIO
-#endif // end !USE_FAST_PINIO
-    }
-    return w;
-  }
+  return hwspi._spi->transfer((uint8_t)0);
 }
 
 /*!
@@ -1379,17 +978,17 @@ uint8_t Adafruit_SPITFT::spiRead(void) {
             Thus operates ONLY on 'wide' (16-bit) parallel displays!
     @param  w  16-bit value to write.
 */
-void Adafruit_SPITFT::write16(uint16_t w) {
-  if (connection == TFT_PARALLEL) {
-#if defined(USE_FAST_PINIO)
-    if (tft8.wide)
-      *(volatile uint16_t *)tft8.writePort = w;
-#else
-    (void)w; // disable -Wunused-parameter warning
-#endif
-    TFT_WR_STROBE();
-  }
-}
+// void Adafruit_SPITFT::write16(uint16_t w) {
+//   if (connection == TFT_PARALLEL) {
+// #if defined(USE_FAST_PINIO)
+//     if (tft8.wide)
+//       *(volatile uint16_t *)tft8.writePort = w;
+// #else
+//     (void)w; // disable -Wunused-parameter warning
+// #endif
+//     TFT_WR_STROBE();
+//   }
+// }
 
 /*!
     @brief  Write a single command word to the display. Chip-select and
@@ -1399,11 +998,11 @@ void Adafruit_SPITFT::write16(uint16_t w) {
             displays!
     @param  cmd  16-bit command to write.
 */
-void Adafruit_SPITFT::writeCommand16(uint16_t cmd) {
-  SPI_DC_LOW();
-  write16(cmd);
-  SPI_DC_HIGH();
-}
+// void Adafruit_SPITFT::writeCommand16(uint16_t cmd) {
+//   SPI_DC_LOW();
+//   write16(cmd);
+//   SPI_DC_HIGH();
+// }
 
 /*!
     @brief   Read a single 16-bit value from the display. Chip-select and
@@ -1413,123 +1012,123 @@ void Adafruit_SPITFT::writeCommand16(uint16_t cmd) {
     @return  Unsigned 16-bit value read (always zero if USE_FAST_PINIO is
              not supported by the MCU architecture).
 */
-uint16_t Adafruit_SPITFT::read16(void) {
-  uint16_t w = 0;
-  if (connection == TFT_PARALLEL) {
-    if (tft8._rd >= 0) {
-#if defined(USE_FAST_PINIO)
-      TFT_RD_LOW();    // Read line LOW
-      if (tft8.wide) { // 16-bit TFT connection
-#if defined(HAS_PORT_SET_CLR)
-        *(volatile uint16_t *)tft8.dirClr = 0xFFFF; // Input state
-        w = *(volatile uint16_t *)tft8.readPort;    // 16-bit read
-        *(volatile uint16_t *)tft8.dirSet = 0xFFFF; // Output state
-#else                                               // !HAS_PORT_SET_CLR
-        *(volatile uint16_t *)tft8.portDir = 0x0000; // Input state
-        w = *(volatile uint16_t *)tft8.readPort;     // 16-bit read
-        *(volatile uint16_t *)tft8.portDir = 0xFFFF; // Output state
-#endif                                              // end !HAS_PORT_SET_CLR
-      }
-      TFT_RD_HIGH(); // Read line HIGH
-#else                // !USE_FAST_PINIO
-      w = 0; // Parallel TFT is NOT SUPPORTED without USE_FAST_PINIO
-#endif               // end !USE_FAST_PINIO
-    }
-  }
-  return w;
-}
+// uint16_t Adafruit_SPITFT::read16(void) {
+//   uint16_t w = 0;
+//   if (connection == TFT_PARALLEL) {
+//     if (tft8._rd >= 0) {
+// #if defined(USE_FAST_PINIO)
+//       TFT_RD_LOW();    // Read line LOW
+//       if (tft8.wide) { // 16-bit TFT connection
+// #if defined(HAS_PORT_SET_CLR)
+//         *(volatile uint16_t *)tft8.dirClr = 0xFFFF; // Input state
+//         w = *(volatile uint16_t *)tft8.readPort;    // 16-bit read
+//         *(volatile uint16_t *)tft8.dirSet = 0xFFFF; // Output state
+// #else                                               // !HAS_PORT_SET_CLR
+//         *(volatile uint16_t *)tft8.portDir = 0x0000; // Input state
+//         w = *(volatile uint16_t *)tft8.readPort;     // 16-bit read
+//         *(volatile uint16_t *)tft8.portDir = 0xFFFF; // Output state
+// #endif                                              // end !HAS_PORT_SET_CLR
+//       }
+//       TFT_RD_HIGH(); // Read line HIGH
+// #else                // !USE_FAST_PINIO
+//       w = 0; // Parallel TFT is NOT SUPPORTED without USE_FAST_PINIO
+// #endif               // end !USE_FAST_PINIO
+//     }
+//   }
+//   return w;
+// }
 
 /*!
     @brief  Set the software (bitbang) SPI MOSI line HIGH.
 */
-inline void Adafruit_SPITFT::SPI_MOSI_HIGH(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-#if defined(KINETISK)
-  *swspi.mosiPortSet = 1;
-#else // !KINETISK
-  *swspi.mosiPortSet = swspi.mosiPinMask;
-#endif
-#else  // !HAS_PORT_SET_CLR
-  *swspi.mosiPort |= swspi.mosiPinMaskSet;
-#endif // end !HAS_PORT_SET_CLR
-#else  // !USE_FAST_PINIO
-  digitalWrite(swspi._mosi, HIGH);
-#endif // end !USE_FAST_PINIO
-}
+// inline void Adafruit_SPITFT::SPI_MOSI_HIGH(void) {
+// #if defined(USE_FAST_PINIO)
+// #if defined(HAS_PORT_SET_CLR)
+// #if defined(KINETISK)
+//   *swspi.mosiPortSet = 1;
+// #else // !KINETISK
+//   *swspi.mosiPortSet = swspi.mosiPinMask;
+// #endif
+// #else  // !HAS_PORT_SET_CLR
+//   *swspi.mosiPort |= swspi.mosiPinMaskSet;
+// #endif // end !HAS_PORT_SET_CLR
+// #else  // !USE_FAST_PINIO
+//   digitalWrite(swspi._mosi, HIGH);
+// #endif // end !USE_FAST_PINIO
+// }
 
 /*!
     @brief  Set the software (bitbang) SPI MOSI line LOW.
 */
-inline void Adafruit_SPITFT::SPI_MOSI_LOW(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-#if defined(KINETISK)
-  *swspi.mosiPortClr = 1;
-#else // !KINETISK
-  *swspi.mosiPortClr = swspi.mosiPinMask;
-#endif
-#else  // !HAS_PORT_SET_CLR
-  *swspi.mosiPort &= swspi.mosiPinMaskClr;
-#endif // end !HAS_PORT_SET_CLR
-#else  // !USE_FAST_PINIO
-  digitalWrite(swspi._mosi, LOW);
-#endif // end !USE_FAST_PINIO
-}
+// inline void Adafruit_SPITFT::SPI_MOSI_LOW(void) {
+// #if defined(USE_FAST_PINIO)
+// #if defined(HAS_PORT_SET_CLR)
+// #if defined(KINETISK)
+//   *swspi.mosiPortClr = 1;
+// #else // !KINETISK
+//   *swspi.mosiPortClr = swspi.mosiPinMask;
+// #endif
+// #else  // !HAS_PORT_SET_CLR
+//   *swspi.mosiPort &= swspi.mosiPinMaskClr;
+// #endif // end !HAS_PORT_SET_CLR
+// #else  // !USE_FAST_PINIO
+//   digitalWrite(swspi._mosi, LOW);
+// #endif // end !USE_FAST_PINIO
+// }
 
 /*!
     @brief  Set the software (bitbang) SPI SCK line HIGH.
 */
-inline void Adafruit_SPITFT::SPI_SCK_HIGH(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-#if defined(KINETISK)
-  *swspi.sckPortSet = 1;
-#else // !KINETISK
-  *swspi.sckPortSet = swspi.sckPinMask;
-#endif
-#else  // !HAS_PORT_SET_CLR
-  *swspi.sckPort |= swspi.sckPinMaskSet;
-#endif // end !HAS_PORT_SET_CLR
-#else  // !USE_FAST_PINIO
-  digitalWrite(swspi._sck, HIGH);
-#endif // end !USE_FAST_PINIO
-}
+// inline void Adafruit_SPITFT::SPI_SCK_HIGH(void) {
+// #if defined(USE_FAST_PINIO)
+// #if defined(HAS_PORT_SET_CLR)
+// #if defined(KINETISK)
+//   *swspi.sckPortSet = 1;
+// #else // !KINETISK
+//   *swspi.sckPortSet = swspi.sckPinMask;
+// #endif
+// #else  // !HAS_PORT_SET_CLR
+//   *swspi.sckPort |= swspi.sckPinMaskSet;
+// #endif // end !HAS_PORT_SET_CLR
+// #else  // !USE_FAST_PINIO
+//   digitalWrite(swspi._sck, HIGH);
+// #endif // end !USE_FAST_PINIO
+// }
 
 /*!
     @brief  Set the software (bitbang) SPI SCK line LOW.
 */
-inline void Adafruit_SPITFT::SPI_SCK_LOW(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-#if defined(KINETISK)
-  *swspi.sckPortClr = 1;
-#else // !KINETISK
-  *swspi.sckPortClr = swspi.sckPinMask;
-#endif
-#else  // !HAS_PORT_SET_CLR
-  *swspi.sckPort &= swspi.sckPinMaskClr;
-#endif // end !HAS_PORT_SET_CLR
-#else  // !USE_FAST_PINIO
-  digitalWrite(swspi._sck, LOW);
-#endif // end !USE_FAST_PINIO
-}
+// inline void Adafruit_SPITFT::SPI_SCK_LOW(void) {
+// #if defined(USE_FAST_PINIO)
+// #if defined(HAS_PORT_SET_CLR)
+// #if defined(KINETISK)
+//   *swspi.sckPortClr = 1;
+// #else // !KINETISK
+//   *swspi.sckPortClr = swspi.sckPinMask;
+// #endif
+// #else  // !HAS_PORT_SET_CLR
+//   *swspi.sckPort &= swspi.sckPinMaskClr;
+// #endif // end !HAS_PORT_SET_CLR
+// #else  // !USE_FAST_PINIO
+//   digitalWrite(swspi._sck, LOW);
+// #endif // end !USE_FAST_PINIO
+// }
 
 /*!
     @brief   Read the state of the software (bitbang) SPI MISO line.
     @return  true if HIGH, false if LOW.
 */
-inline bool Adafruit_SPITFT::SPI_MISO_READ(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(KINETISK)
-  return *swspi.misoPort;
-#else  // !KINETISK
-  return *swspi.misoPort & swspi.misoPinMask;
-#endif // end !KINETISK
-#else  // !USE_FAST_PINIO
-  return digitalRead(swspi._miso);
-#endif // end !USE_FAST_PINIO
-}
+// inline bool Adafruit_SPITFT::SPI_MISO_READ(void) {
+// #if defined(USE_FAST_PINIO)
+// #if defined(KINETISK)
+//   return *swspi.misoPort;
+// #else  // !KINETISK
+//   return *swspi.misoPort & swspi.misoPinMask;
+// #endif // end !KINETISK
+// #else  // !USE_FAST_PINIO
+//   return digitalRead(swspi._miso);
+// #endif // end !USE_FAST_PINIO
+// }
 
 /*!
     @brief  Issue a single 16-bit value to the display. Chip-select,
@@ -1542,49 +1141,9 @@ inline bool Adafruit_SPITFT::SPI_MISO_READ(void) {
     @param  w  16-bit value to write.
 */
 void Adafruit_SPITFT::SPI_WRITE16(uint16_t w) {
-  if (connection == TFT_HARD_SPI) {
-#if defined(__AVR__)
-    AVR_WRITESPI(w >> 8);
-    AVR_WRITESPI(w);
-#elif defined(ESP8266) || defined(ESP32)
-    hwspi._spi->write16(w);
-#elif defined(ARDUINO_ARCH_RP2040)
-    spi_inst_t *pi_spi = hwspi._spi == &SPI ? __SPI0_DEVICE : __SPI1_DEVICE;
-    w = __builtin_bswap16(w);
-    spi_write_blocking(pi_spi, (uint8_t *)&w, 2);
-#elif defined(ARDUINO_ARCH_RTTHREAD)
-    hwspi._spi->transfer16(w);
-#else
     // MSB, LSB because TFTs are generally big-endian
     hwspi._spi->transfer(w >> 8);
     hwspi._spi->transfer(w);
-#endif
-  } else if (connection == TFT_SOFT_SPI) {
-    for (uint8_t bit = 0; bit < 16; bit++) {
-      if (w & 0x8000)
-        SPI_MOSI_HIGH();
-      else
-        SPI_MOSI_LOW();
-      SPI_SCK_HIGH();
-      SPI_SCK_LOW();
-      w <<= 1;
-    }
-  } else { // TFT_PARALLEL
-#if defined(__AVR__)
-    *tft8.writePort = w >> 8;
-    TFT_WR_STROBE();
-    *tft8.writePort = w;
-#elif defined(USE_FAST_PINIO)
-    if (!tft8.wide) {
-      *tft8.writePort = w >> 8;
-      TFT_WR_STROBE();
-      *tft8.writePort = w;
-    } else {
-      *(volatile uint16_t *)tft8.writePort = w;
-    }
-#endif
-    TFT_WR_STROBE();
-  }
 }
 
 /*!
@@ -1598,117 +1157,64 @@ void Adafruit_SPITFT::SPI_WRITE16(uint16_t w) {
     @param  l  32-bit value to write.
 */
 void Adafruit_SPITFT::SPI_WRITE32(uint32_t l) {
-  if (connection == TFT_HARD_SPI) {
-#if defined(__AVR__)
-    AVR_WRITESPI(l >> 24);
-    AVR_WRITESPI(l >> 16);
-    AVR_WRITESPI(l >> 8);
-    AVR_WRITESPI(l);
-#elif defined(ESP8266) || defined(ESP32)
-    hwspi._spi->write32(l);
-#elif defined(ARDUINO_ARCH_RP2040)
-    spi_inst_t *pi_spi = hwspi._spi == &SPI ? __SPI0_DEVICE : __SPI1_DEVICE;
-    l = __builtin_bswap32(l);
-    spi_write_blocking(pi_spi, (uint8_t *)&l, 4);
-#elif defined(ARDUINO_ARCH_RTTHREAD)
-    hwspi._spi->transfer16(l >> 16);
-    hwspi._spi->transfer16(l);
-#else
     hwspi._spi->transfer(l >> 24);
     hwspi._spi->transfer(l >> 16);
     hwspi._spi->transfer(l >> 8);
     hwspi._spi->transfer(l);
-#endif
-  } else if (connection == TFT_SOFT_SPI) {
-    for (uint8_t bit = 0; bit < 32; bit++) {
-      if (l & 0x80000000)
-        SPI_MOSI_HIGH();
-      else
-        SPI_MOSI_LOW();
-      SPI_SCK_HIGH();
-      SPI_SCK_LOW();
-      l <<= 1;
-    }
-  } else { // TFT_PARALLEL
-#if defined(__AVR__)
-    *tft8.writePort = l >> 24;
-    TFT_WR_STROBE();
-    *tft8.writePort = l >> 16;
-    TFT_WR_STROBE();
-    *tft8.writePort = l >> 8;
-    TFT_WR_STROBE();
-    *tft8.writePort = l;
-#elif defined(USE_FAST_PINIO)
-    if (!tft8.wide) {
-      *tft8.writePort = l >> 24;
-      TFT_WR_STROBE();
-      *tft8.writePort = l >> 16;
-      TFT_WR_STROBE();
-      *tft8.writePort = l >> 8;
-      TFT_WR_STROBE();
-      *tft8.writePort = l;
-    } else {
-      *(volatile uint16_t *)tft8.writePort = l >> 16;
-      TFT_WR_STROBE();
-      *(volatile uint16_t *)tft8.writePort = l;
-    }
-#endif
-    TFT_WR_STROBE();
-  }
 }
 
 /*!
     @brief  Set the WR line LOW, then HIGH. Used for parallel-connected
             interfaces when writing data.
 */
-inline void Adafruit_SPITFT::TFT_WR_STROBE(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-#if defined(KINETISK)
-  *tft8.wrPortClr = 1;
-  *tft8.wrPortSet = 1;
-#else  // !KINETISK
-  *tft8.wrPortClr = tft8.wrPinMask;
-  *tft8.wrPortSet = tft8.wrPinMask;
-#endif // end !KINETISK
-#else  // !HAS_PORT_SET_CLR
-  *tft8.wrPort &= tft8.wrPinMaskClr;
-  *tft8.wrPort |= tft8.wrPinMaskSet;
-#endif // end !HAS_PORT_SET_CLR
-#else  // !USE_FAST_PINIO
-  digitalWrite(tft8._wr, LOW);
-  digitalWrite(tft8._wr, HIGH);
-#endif // end !USE_FAST_PINIO
-}
+// inline void Adafruit_SPITFT::TFT_WR_STROBE(void) {
+// #if defined(USE_FAST_PINIO)
+// #if defined(HAS_PORT_SET_CLR)
+// #if defined(KINETISK)
+//   *tft8.wrPortClr = 1;
+//   *tft8.wrPortSet = 1;
+// #else  // !KINETISK
+//   *tft8.wrPortClr = tft8.wrPinMask;
+//   *tft8.wrPortSet = tft8.wrPinMask;
+// #endif // end !KINETISK
+// #else  // !HAS_PORT_SET_CLR
+//   *tft8.wrPort &= tft8.wrPinMaskClr;
+//   *tft8.wrPort |= tft8.wrPinMaskSet;
+// #endif // end !HAS_PORT_SET_CLR
+// #else  // !USE_FAST_PINIO
+//   digitalWrite(tft8._wr, LOW);
+//   digitalWrite(tft8._wr, HIGH);
+// #endif // end !USE_FAST_PINIO
+// }
 
 /*!
     @brief  Set the RD line HIGH. Used for parallel-connected interfaces
             when reading data.
 */
-inline void Adafruit_SPITFT::TFT_RD_HIGH(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-  *tft8.rdPortSet = tft8.rdPinMask;
-#else  // !HAS_PORT_SET_CLR
-  *tft8.rdPort |= tft8.rdPinMaskSet;
-#endif // end !HAS_PORT_SET_CLR
-#else  // !USE_FAST_PINIO
-  digitalWrite(tft8._rd, HIGH);
-#endif // end !USE_FAST_PINIO
-}
+// inline void Adafruit_SPITFT::TFT_RD_HIGH(void) {
+// #if defined(USE_FAST_PINIO)
+// #if defined(HAS_PORT_SET_CLR)
+//   *tft8.rdPortSet = tft8.rdPinMask;
+// #else  // !HAS_PORT_SET_CLR
+//   *tft8.rdPort |= tft8.rdPinMaskSet;
+// #endif // end !HAS_PORT_SET_CLR
+// #else  // !USE_FAST_PINIO
+//   digitalWrite(tft8._rd, HIGH);
+// #endif // end !USE_FAST_PINIO
+// }
 
 /*!
     @brief  Set the RD line LOW. Used for parallel-connected interfaces
             when reading data.
 */
-inline void Adafruit_SPITFT::TFT_RD_LOW(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-  *tft8.rdPortClr = tft8.rdPinMask;
-#else  // !HAS_PORT_SET_CLR
-  *tft8.rdPort &= tft8.rdPinMaskClr;
-#endif // end !HAS_PORT_SET_CLR
-#else  // !USE_FAST_PINIO
-  digitalWrite(tft8._rd, LOW);
-#endif // end !USE_FAST_PINIO
-}
+// inline void Adafruit_SPITFT::TFT_RD_LOW(void) {
+// #if defined(USE_FAST_PINIO)
+// #if defined(HAS_PORT_SET_CLR)
+//   *tft8.rdPortClr = tft8.rdPinMask;
+// #else  // !HAS_PORT_SET_CLR
+//   *tft8.rdPort &= tft8.rdPinMaskClr;
+// #endif // end !HAS_PORT_SET_CLR
+// #else  // !USE_FAST_PINIO
+//   digitalWrite(tft8._rd, LOW);
+// #endif // end !USE_FAST_PINIO
+// }

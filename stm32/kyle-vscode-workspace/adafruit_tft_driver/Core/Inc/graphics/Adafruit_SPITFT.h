@@ -22,94 +22,25 @@
 
 #include "Adafruit_GFX.h"
 #include "stm32h533xx.h"
+#include "stm32h5xx_hal_gpio.h"
 // #include <SPI.h>
 
 // HARDWARE CONFIG ---------------------------------------------------------
-
-#if defined(__AVR__)
-typedef uint8_t ADAGFX_PORT_t;       ///< PORT values are 8-bit
-#define USE_FAST_PINIO               ///< Use direct PORT register access
-#elif defined(ARDUINO_STM32_FEATHER) // WICED
-typedef class HardwareSPI SPIClass; ///< SPI is a bit odd on WICED
-typedef uint32_t ADAGFX_PORT_t;     ///< PORT values are 32-bit
-#elif defined(__arm__)
-#if defined(ARDUINO_ARCH_SAMD)
-// Adafruit M0, M4
 typedef uint32_t ADAGFX_PORT_t; ///< PORT values are 32-bit
-#define USE_FAST_PINIO   ///< Use direct PORT register access
-#define HAS_PORT_SET_CLR ///< PORTs have set & clear registers
-#elif defined(CORE_TEENSY)
-// PJRC Teensy 4.x
-#if defined(__IMXRT1052__) || defined(__IMXRT1062__) // Teensy 4.x
-typedef uint32_t ADAGFX_PORT_t; ///< PORT values are 32-bit
-                                // PJRC Teensy 3.x
-#else
-typedef uint8_t ADAGFX_PORT_t; ///< PORT values are 8-bit
-#endif
-#define USE_FAST_PINIO   ///< Use direct PORT register access
-#define HAS_PORT_SET_CLR ///< PORTs have set & clear registers
-#else
-// Arduino Due?
-typedef uint32_t ADAGFX_PORT_t; ///< PORT values are 32-bit
-// USE_FAST_PINIO not available here (yet)...Due has a totally different
-// GPIO register set and will require some changes elsewhere (e.g. in
-// constructors especially).
-#endif
-#else                                      // !ARM
-// Probably ESP8266 or ESP32. USE_FAST_PINIO is not available here (yet)
-// but don't worry about it too much...the digitalWrite() implementation
-// on these platforms is reasonably efficient and already RAM-resident,
-// only gotcha then is no parallel connection support for now.
-typedef uint32_t ADAGFX_PORT_t; ///< PORT values are 32-bit
-#endif                                     // end !ARM
 typedef volatile ADAGFX_PORT_t *PORTreg_t; ///< PORT register type
 
-#if defined(__AVR__) && !defined(__LGT8F__)
-#define DEFAULT_SPI_FREQ 8000000L ///< Hardware SPI default speed
-#else
 #define DEFAULT_SPI_FREQ 16000000L ///< Hardware SPI default speed
-#endif
 
-#if defined(ADAFRUIT_PYPORTAL) || defined(ADAFRUIT_PYPORTAL_M4_TITANO) ||      \
-    defined(ADAFRUIT_PYBADGE_M4_EXPRESS) ||                                    \
-    defined(ADAFRUIT_PYGAMER_M4_EXPRESS) ||                                    \
-    defined(ADAFRUIT_MONSTER_M4SK_EXPRESS) || defined(NRF52_SERIES) ||         \
-    defined(ADAFRUIT_CIRCUITPLAYGROUND_M0)
-#define USE_SPI_DMA ///< Auto DMA
-#else
-                                           // #define USE_SPI_DMA ///< If set,
-                                           //  use DMA if available
-#endif
-// Another "oops" name -- this now also handles parallel DMA.
-// If DMA is enabled, Arduino sketch MUST #include <Adafruit_ZeroDMA.h>
-// Estimated RAM usage:
-// 4 bytes/pixel on display major axis + 8 bytes/pixel on minor axis,
-// e.g. 320x240 pixels = 320 * 4 + 240 * 8 = 3,200 bytes.
-
-#if defined(USE_SPI_DMA) && (defined(__SAMD51__) || defined(ARDUINO_SAMD_ZERO))
-#include <Adafruit_ZeroDMA.h>
-#endif
-
-// This is kind of a kludge. Needed a way to disambiguate the software SPI
-// and parallel constructors via their argument lists. Originally tried a
-// bool as the first argument to the parallel constructor (specifying 8-bit
-// vs 16-bit interface) but the compiler regards this as equivalent to an
-// integer and thus still ambiguous. SO...the parallel constructor requires
-// an enumerated type as the first argument: tft8 (for 8-bit parallel) or
-// tft16 (for 16-bit)...even though 16-bit isn't fully implemented or tested
-// and might never be, still needed that disambiguation from soft SPI.
-/*! For first arg to parallel constructor */
-enum tftBusWidth { tft8bitbus, tft16bitbus };
-
-// SPI defaults for RP2040
-#if defined(ARDUINO_ARCH_RP2040)
-#ifndef __SPI0_DEVICE
-#define __SPI0_DEVICE spi0
-#endif
-#ifndef __SPI1_DEVICE
-#define __SPI1_DEVICE spi1
-#endif
-#endif
+// // This is kind of a kludge. Needed a way to disambiguate the software SPI
+// // and parallel constructors via their argument lists. Originally tried a
+// // bool as the first argument to the parallel constructor (specifying 8-bit
+// // vs 16-bit interface) but the compiler regards this as equivalent to an
+// // integer and thus still ambiguous. SO...the parallel constructor requires
+// // an enumerated type as the first argument: tft8 (for 8-bit parallel) or
+// // tft16 (for 16-bit)...even though 16-bit isn't fully implemented or tested
+// // and might never be, still needed that disambiguation from soft SPI.
+// /*! For first arg to parallel constructor */
+// enum tftBusWidth { tft8bitbus, tft16bitbus };
 
 // CLASS DEFINITION --------------------------------------------------------
 
@@ -136,33 +67,31 @@ public:
   // (reset, miso). cs argument is required but can be -1 if unused --
   // rather than moving it to the optional arguments, it was done this way
   // to avoid breaking existing code (-1 option was a later addition).
-  Adafruit_SPITFT(uint16_t w, uint16_t h, int8_t cs, int8_t dc, int8_t mosi,
-                  int8_t sck, int8_t rst = -1, int8_t miso = -1);
+//   Adafruit_SPITFT(uint16_t w, uint16_t h, int8_t cs, int8_t dc, int8_t mosi,
+//                   int8_t sck, int8_t rst = -1, int8_t miso = -1);
 
   // Hardware SPI constructor using the default SPI port: expects width &
   // height (at default rotation setting 0), 2 signal pins (cs, dc),
   // optional reset pin. cs is required but can be -1 if unused -- rather
   // than moving it to the optional arguments, it was done this way to
   // avoid breaking existing code (-1 option was a later addition).
-  Adafruit_SPITFT(uint16_t w, uint16_t h, int8_t cs, int8_t dc,
-                  int8_t rst = -1);
+//   Adafruit_SPITFT(uint16_t w, uint16_t h, int8_t cs, int8_t dc,
+//                   int8_t rst = -1);
 
-#if !defined(ESP8266) // See notes in .cpp
   // Hardware SPI constructor using an arbitrary SPI peripheral: expects
   // width & height (rotation 0), SPIClass pointer, 2 signal pins (cs, dc)
   // and optional reset pin. cs is required but can be -1 if unused.
-  Adafruit_SPITFT(uint16_t w, uint16_t h, SPIClass *spiClass, int8_t cs,
-                  int8_t dc, int8_t rst = -1);
-#endif // end !ESP8266
+  Adafruit_SPITFT(uint16_t w, uint16_t h, SPI_HandleTypeDef *spiHandle, int16_t cs,
+                  GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, int8_t rst = -1);
 
   // Parallel constructor: expects width & height (rotation 0), flag
   // indicating whether 16-bit (true) or 8-bit (false) interface, 3 signal
   // pins (d0, wr, dc), 3 optional pins (cs, rst, rd). 16-bit parallel
   // isn't even fully implemented but the 'wide' flag was added as a
   // required argument to avoid ambiguity with other constructors.
-  Adafruit_SPITFT(uint16_t w, uint16_t h, tftBusWidth busWidth, int8_t d0,
-                  int8_t wr, int8_t dc, int8_t cs = -1, int8_t rst = -1,
-                  int8_t rd = -1);
+//   Adafruit_SPITFT(uint16_t w, uint16_t h, tftBusWidth busWidth, int8_t d0,
+//                   int8_t wr, int8_t dc, int8_t cs = -1, int8_t rst = -1,
+//                   int8_t rd = -1);
 
   // DESTRUCTOR ----------------------------------------------------------
 
@@ -202,7 +131,7 @@ public:
   // values defined in SPI.h, which are NOT the same as 0 for SPI_MODE0,
   // 1 for SPI_MODE1, etc...use ONLY the SPI_MODEn defines! Only!
   // Name is outdated (interface may be parallel) but for compatibility:
-  void initSPI(uint32_t freq = 0, uint8_t spiMode = SPI_MODE0);
+  void initSPI(uint32_t freq = 0);
   void setSPISpeed(uint32_t freq);
   // Chip select and/or hardware SPI transaction start as needed:
   void startWrite(void);
@@ -298,19 +227,7 @@ public:
               connection is parallel.
   */
   void SPI_CS_HIGH(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-#if defined(KINETISK)
-    *csPortSet = 1;
-#else  // !KINETISK
-    *csPortSet = csPinMask;
-#endif // end !KINETISK
-#else  // !HAS_PORT_SET_CLR
-    *csPort |= csPinMaskSet;
-#endif // end !HAS_PORT_SET_CLR
-#else  // !USE_FAST_PINIO
-    digitalWrite(_cs, HIGH);
-#endif // end !USE_FAST_PINIO
+    HAL_GPIO_WritePin(_cs_port, _cs_pin, GPIO_PIN_SET);
   }
 
   /*!
@@ -320,58 +237,21 @@ public:
               connection is parallel.
   */
   void SPI_CS_LOW(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-#if defined(KINETISK)
-    *csPortClr = 1;
-#else  // !KINETISK
-    *csPortClr = csPinMask;
-#endif // end !KINETISK
-#else  // !HAS_PORT_SET_CLR
-    *csPort &= csPinMaskClr;
-#endif // end !HAS_PORT_SET_CLR
-#else  // !USE_FAST_PINIO
-    digitalWrite(_cs, LOW);
-#endif // end !USE_FAST_PINIO
+    HAL_GPIO_WritePin(_cs_port, _cs_pin, GPIO_PIN_RESET);
   }
 
   /*!
       @brief  Set the data/command line HIGH (data mode).
   */
   void SPI_DC_HIGH(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-#if defined(KINETISK)
-    *dcPortSet = 1;
-#else  // !KINETISK
-    *dcPortSet = dcPinMask;
-#endif // end !KINETISK
-#else  // !HAS_PORT_SET_CLR
-    *dcPort |= dcPinMaskSet;
-#endif // end !HAS_PORT_SET_CLR
-#else  // !USE_FAST_PINIO
-    digitalWrite(_dc, HIGH);
-#endif // end !USE_FAST_PINIO
+    HAL_GPIO_WritePin(_dc_port, _dc_pin, GPIO_PIN_SET);
   }
 
-  
   /*!
       @brief  Set the data/command line LOW (command mode).
   */
   void SPI_DC_LOW(void) {
-#if defined(USE_FAST_PINIO)
-#if defined(HAS_PORT_SET_CLR)
-#if defined(KINETISK)
-    *dcPortClr = 1;
-#else  // !KINETISK
-    *dcPortClr = dcPinMask;
-#endif // end !KINETISK
-#else  // !HAS_PORT_SET_CLR
-    *dcPort &= dcPinMaskClr;
-#endif // end !HAS_PORT_SET_CLR
-#else  // !USE_FAST_PINIO
-    digitalWrite(_dc, LOW);
-#endif // end !USE_FAST_PINIO
+    HAL_GPIO_WritePin(_dc_port, _dc_pin, GPIO_PIN_RESET);
   }
 
 protected:
@@ -403,7 +283,7 @@ protected:
 //   union {
 // #endif
     struct {          //   Values specific to HARDWARE SPI:
-      SPIClass *_spi; ///< SPI class pointer
+      SPI_HandleTypeDef *_spi; ///< SPI handle pointer
 #if defined(SPI_HAS_TRANSACTION)
       SPISettings settings; ///< SPI transaction settings
 #else

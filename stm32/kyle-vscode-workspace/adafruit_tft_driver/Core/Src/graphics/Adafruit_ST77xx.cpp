@@ -111,7 +111,7 @@ void Adafruit_ST77xx::displayInit(const uint8_t *addr) {
       ms = pgm_read_byte(addr++); // Read post-command delay time (ms)
       if (ms == 255)
         ms = 500; // If 255, delay for 500 ms
-      delay(ms);
+      HAL_Delay(ms);
     }
   }
 }

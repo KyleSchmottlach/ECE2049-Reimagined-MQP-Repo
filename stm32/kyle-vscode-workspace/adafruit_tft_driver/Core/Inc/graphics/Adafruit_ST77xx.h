@@ -29,7 +29,6 @@
 // #include "Print.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SPITFT.h>
-#include <Adafruit_SPITFT_Macros.h>
 
 #define boolean bool // Get around arduino using boolean instead of bool for some reason
 
@@ -90,14 +89,12 @@
 /// Subclass of SPITFT for ST77xx displays (lots in common!)
 class Adafruit_ST77xx : public Adafruit_SPITFT {
 public:
-  Adafruit_ST77xx(uint16_t w, uint16_t h, int8_t _CS, int8_t _DC, int8_t _MOSI,
-                  int8_t _SCLK, int8_t _RST = -1, int8_t _MISO = -1);
-  Adafruit_ST77xx(uint16_t w, uint16_t h, int8_t CS, int8_t RS,
-                  int8_t RST = -1);
-#if !defined(ESP8266)
-  Adafruit_ST77xx(uint16_t w, uint16_t h, SPIClass *spiClass, int8_t CS,
+  // Adafruit_ST77xx(uint16_t w, uint16_t h, int8_t _CS, int8_t _DC, int8_t _MOSI,
+  //                 int8_t _SCLK, int8_t _RST = -1, int8_t _MISO = -1);
+  // Adafruit_ST77xx(uint16_t w, uint16_t h, int8_t CS, int8_t RS,
+  //                 int8_t RST = -1);
+  Adafruit_ST77xx(uint16_t w, uint16_t h, SPI_HandleTypeDef *spiHandle, int8_t CS,
                   int8_t RS, int8_t RST = -1);
-#endif // end !ESP8266
 
   void setAddrWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
   void setRotation(uint8_t r);
@@ -107,8 +104,8 @@ public:
 
 protected:
   uint8_t _colstart = 0,   ///< Some displays need this changed to offset
-      _rowstart = 0,       ///< Some displays need this changed to offset
-      spiMode = SPI_MODE0; ///< Certain display needs MODE3 instead
+      _rowstart = 0;       ///< Some displays need this changed to offset
+      // spiMode = SPI_MODE0; ///< Certain display needs MODE3 instead
 
   void begin(uint32_t freq = 0);
   void commonInit(const uint8_t *cmdList);

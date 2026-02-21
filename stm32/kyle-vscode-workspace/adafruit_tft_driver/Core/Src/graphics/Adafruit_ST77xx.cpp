@@ -37,39 +37,6 @@
 
 /**************************************************************************/
 /*!
-    @brief  Instantiate Adafruit ST77XX driver with software SPI
-    @param  w     Display width in pixels at default rotation setting (0)
-    @param  h     Display height in pixels at default rotation setting (0)
-    @param  cs    Chip select pin #
-    @param  dc    Data/Command pin #
-    @param  mosi  SPI MOSI pin #
-    @param  sclk  SPI Clock pin #
-    @param  rst   Reset pin # (optional, pass -1 if unused)
-    @param  miso  SPI MISO pin # (optional, pass -1 if unused)
-*/
-/**************************************************************************/
-Adafruit_ST77xx::Adafruit_ST77xx(uint16_t w, uint16_t h, int8_t cs, int8_t dc,
-                                 int8_t mosi, int8_t sclk, int8_t rst,
-                                 int8_t miso)
-    : Adafruit_SPITFT(w, h, cs, dc, mosi, sclk, rst, miso) {}
-
-/**************************************************************************/
-/*!
-    @brief  Instantiate Adafruit ST77XX driver with hardware SPI
-    @param  w     Display width in pixels at default rotation setting (0)
-    @param  h     Display height in pixels at default rotation setting (0)
-    @param  cs    Chip select pin #
-    @param  dc    Data/Command pin #
-    @param  rst   Reset pin # (optional, pass -1 if unused)
-*/
-/**************************************************************************/
-Adafruit_ST77xx::Adafruit_ST77xx(uint16_t w, uint16_t h, int8_t cs, int8_t dc,
-                                 int8_t rst)
-    : Adafruit_SPITFT(w, h, cs, dc, rst) {}
-
-#if !defined(ESP8266)
-/**************************************************************************/
-/*!
     @brief  Instantiate Adafruit ST77XX driver with selectable hardware SPI
     @param  w     Display width in pixels at default rotation setting (0)
     @param  h     Display height in pixels at default rotation setting (0)
@@ -79,10 +46,9 @@ Adafruit_ST77xx::Adafruit_ST77xx(uint16_t w, uint16_t h, int8_t cs, int8_t dc,
     @param  rst   Reset pin # (optional, pass -1 if unused)
 */
 /**************************************************************************/
-Adafruit_ST77xx::Adafruit_ST77xx(uint16_t w, uint16_t h, SPIClass *spiClass,
-                                 int8_t cs, int8_t dc, int8_t rst)
-    : Adafruit_SPITFT(w, h, spiClass, cs, dc, rst) {}
-#endif // end !ESP8266
+Adafruit_ST77xx::Adafruit_ST77xx(uint16_t w, uint16_t h, SPI_HandleTypeDef *spiHandle,
+                                 int16_t cs, GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, int8_t rst)
+    : Adafruit_SPITFT(w, h, spiHandle, cs, cs_port, dc, dc_port, rst) {}
 
 /**************************************************************************/
 /*!
@@ -132,7 +98,7 @@ void Adafruit_ST77xx::begin(uint32_t freq) {
   invertOnCommand = ST77XX_INVON;
   invertOffCommand = ST77XX_INVOFF;
 
-  initSPI(freq, spiMode);
+  initSPI(freq);
 }
 
 /**************************************************************************/

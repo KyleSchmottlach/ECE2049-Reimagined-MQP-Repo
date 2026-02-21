@@ -14,6 +14,7 @@ extern "C" {
 #include "gfxfont.h"
 #include <stdlib.h>
 #include <stdint.h>
+#include "Print.h"
 
 // #include <Adafruit_I2CDevice.h>
 // #include <Adafruit_SPIDevice.h>
@@ -44,7 +45,7 @@ extern "C" {
 /// A generic graphics superclass that can handle all sorts of drawing. At a
 /// minimum you can subclass and provide drawPixel(). At a maximum you can do a
 /// ton of overriding to optimize. Used for any/all Adafruit displays!
-class Adafruit_GFX {
+class Adafruit_GFX : public Print {
 
 public:
   Adafruit_GFX(int16_t w, int16_t h); // Constructor
@@ -213,12 +214,7 @@ public:
   /**********************************************************************/
   void cp437(bool x = true) { _cp437 = x; }
 
-//   using Print::write;
-// #if ARDUINO >= 100
-//   virtual size_t write(uint8_t);
-// #else
-//   virtual void write(uint8_t);
-// #endif
+  using Print::write;
 
   virtual size_t write(uint8_t);
 
@@ -368,10 +364,6 @@ protected:
                      ///< nothing
 
 private:
-#ifdef __AVR__
-  // Bitmask tables of 0x80>>X and ~(0x80>>X), because X>>Y is slow on AVR
-  static const uint8_t PROGMEM GFXsetBit[], GFXclrBit[];
-#endif
 };
 
 /// A GFX 8-bit canvas context for graphics

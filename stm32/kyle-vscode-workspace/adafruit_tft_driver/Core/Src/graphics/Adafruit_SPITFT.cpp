@@ -33,8 +33,6 @@
  */
 
 #include "Adafruit_SPITFT.h"
-#include "stm32h533xx.h"
-#include "stm32h5xx_hal_gpio.h"
 
 // Possible values for Adafruit_SPITFT.connection:
 #define TFT_HARD_SPI 0 ///< Display interface = hardware SPI
@@ -125,7 +123,7 @@ void Adafruit_SPITFT::initSPI(uint32_t freq) {
     // device needs to be set up before calling this because it's
     // immediately followed with initialization commands. Blargh.
     
-    hwspi._spi->begin();
+    // hwspi._spi->begin();
   }
 }
 
@@ -149,7 +147,7 @@ void Adafruit_SPITFT::setSPISpeed(uint32_t freq) {
             for all display types; not an SPI-specific function.
 */
 void Adafruit_SPITFT::startWrite(void) {
-  SPI_BEGIN_TRANSACTION();
+  // SPI_BEGIN_TRANSACTION();
   if (_cs_pin >= 0)
     SPI_CS_LOW();
 }
@@ -163,7 +161,7 @@ void Adafruit_SPITFT::startWrite(void) {
 void Adafruit_SPITFT::endWrite(void) {
   if (_cs_pin >= 0)
     SPI_CS_HIGH();
-  SPI_END_TRANSACTION();
+  // SPI_END_TRANSACTION();
 }
 
 // -------------------------------------------------------------------------
@@ -296,14 +294,13 @@ void Adafruit_SPITFT::writeColor(uint16_t color, uint32_t len) {
   if (!len)
     return; // Avoid 0-byte transfers
 
-  uint8_t hi = color >> 8, lo = color;
+  uint8_t data[2] = {(uint8_t)(color >> 8), (uint8_t)(color & 0xFF)};
 
   // All other cases (non-DMA hard SPI, bitbang SPI, parallel)...
 
   if (connection == TFT_HARD_SPI) {
     while (len--) {
-      hwspi._spi->transfer(hi);
-      hwspi._spi->transfer(lo);
+      HAL_SPI_Transmit_DMA(hwspi._spi, data, 2);
     }
   }
 }
@@ -740,7 +737,7 @@ data
 */
 void Adafruit_SPITFT::sendCommand(uint8_t commandByte, uint8_t *dataBytes,
                                   uint8_t numDataBytes) {
-  SPI_BEGIN_TRANSACTION();
+  // SPI_BEGIN_TRANSACTION();
   if (_cs_pin >= 0)
     SPI_CS_LOW();
 
@@ -748,14 +745,15 @@ void Adafruit_SPITFT::sendCommand(uint8_t commandByte, uint8_t *dataBytes,
   spiWrite(commandByte); // Send the command byte
 
   SPI_DC_HIGH();
-  for (int i = 0; i < numDataBytes; i++) {
-    spiWrite(*dataBytes); // Send the data bytes
-    dataBytes++;
-  }
+  spiWriteData(dataBytes, numDataBytes);
+  // for (int i = 0; i < numDataBytes; i++) {
+  //   spiWrite(*dataBytes); // Send the data bytes
+  //   dataBytes++;
+  // }
 
   if (_cs_pin >= 0)
     SPI_CS_HIGH();
-  SPI_END_TRANSACTION();
+  // SPI_END_TRANSACTION();
 }
 
 /*!
@@ -767,7 +765,7 @@ void Adafruit_SPITFT::sendCommand(uint8_t commandByte, uint8_t *dataBytes,
  */
 void Adafruit_SPITFT::sendCommand(uint8_t commandByte, const uint8_t *dataBytes,
                                   uint8_t numDataBytes) {
-  SPI_BEGIN_TRANSACTION();
+  // SPI_BEGIN_TRANSACTION();
   if (_cs_pin >= 0)
     SPI_CS_LOW();
 
@@ -775,13 +773,14 @@ void Adafruit_SPITFT::sendCommand(uint8_t commandByte, const uint8_t *dataBytes,
   spiWrite(commandByte); // Send the command byte
 
   SPI_DC_HIGH();
-  for (int i = 0; i < numDataBytes; i++) {
-    spiWrite(pgm_read_byte(dataBytes++));
-  }
+  spiWriteData(dataBytes, numDataBytes);
+  // for (int i = 0; i < numDataBytes; i++) {
+  //   spiWrite(pgm_read_byte(dataBytes++));
+  // }
 
   if (_cs_pin >= 0)
     SPI_CS_HIGH();
-  SPI_END_TRANSACTION();
+  // SPI_END_TRANSACTION();
 }
 
 /*!
@@ -798,7 +797,7 @@ void Adafruit_SPITFT::sendCommand(uint8_t commandByte, const uint8_t *dataBytes,
 void Adafruit_SPITFT::sendCommand16(uint16_t commandWord,
                                     const uint8_t *dataBytes,
                                     uint8_t numDataBytes) {
-  SPI_BEGIN_TRANSACTION();
+  // SPI_BEGIN_TRANSACTION();
   if (_cs_pin >= 0)
     SPI_CS_LOW();
 
@@ -817,32 +816,32 @@ void Adafruit_SPITFT::sendCommand16(uint16_t commandWord,
 
   if (_cs_pin >= 0)
     SPI_CS_HIGH();
-  SPI_END_TRANSACTION();
+  // SPI_END_TRANSACTION();
 }
 
-/*!
- @brief   Read 8 bits of data from display configuration memory (not RAM).
- This is highly undocumented/supported and should be avoided,
- function is only included because some of the examples use it.
- @param   commandByte
- The command register to read data from.
- @param   index
- The byte index into the command to read from.
- @return  Unsigned 8-bit data read from display register.
- */
-/**************************************************************************/
-uint8_t Adafruit_SPITFT::readcommand8(uint8_t commandByte, uint8_t index) {
-  uint8_t result;
-  startWrite();
-  SPI_DC_LOW(); // Command mode
-  spiWrite(commandByte);
-  SPI_DC_HIGH(); // Data mode
-  do {
-    result = spiRead();
-  } while (index--); // Discard bytes up to index'th
-  endWrite();
-  return result;
-}
+// /*!
+//  @brief   Read 8 bits of data from display configuration memory (not RAM).
+//  This is highly undocumented/supported and should be avoided,
+//  function is only included because some of the examples use it.
+//  @param   commandByte
+//  The command register to read data from.
+//  @param   index
+//  The byte index into the command to read from.
+//  @return  Unsigned 8-bit data read from display register.
+//  */
+// /**************************************************************************/
+// uint8_t Adafruit_SPITFT::readcommand8(uint8_t commandByte, uint8_t index) {
+//   uint8_t result;
+//   startWrite();
+//   SPI_DC_LOW(); // Command mode
+//   spiWrite(commandByte);
+//   SPI_DC_HIGH(); // Data mode
+//   do {
+//     result = spiRead();
+//   } while (index--); // Discard bytes up to index'th
+//   endWrite();
+//   return result;
+// }
 
 /*!
  @brief   Read 16 bits of data from display register.
@@ -938,7 +937,17 @@ uint8_t Adafruit_SPITFT::readcommand8(uint8_t commandByte, uint8_t index) {
     @param  b  8-bit value to write.
 */
 void Adafruit_SPITFT::spiWrite(uint8_t b) {
-    hwspi._spi->transfer(b);
+  while(hwspi._spi->State != HAL_SPI_STATE_READY); // Wait for the SPI transmission to complete
+  HAL_SPI_Transmit_DMA(hwspi._spi, &b, 1);
+}
+
+void Adafruit_SPITFT::spiWriteData(uint8_t *data, uint32_t len) {
+  spiWriteData((const uint8_t *)data, len);
+}
+
+void Adafruit_SPITFT::spiWriteData(const uint8_t *data, uint32_t len) {
+  while(hwspi._spi->State != HAL_SPI_STATE_READY); // Wait for the SPI transmission to complete
+  HAL_SPI_Transmit_DMA(hwspi._spi, data, len);
 }
 
 /*!
@@ -955,21 +964,21 @@ void Adafruit_SPITFT::writeCommand(uint8_t cmd) {
   SPI_DC_HIGH();
 }
 
-/*!
-    @brief   Read a single 8-bit value from the display. Chip-select and
-             transaction must have been previously set -- this ONLY reads
-             the byte. This is another of those functions in the library
-             with a now-not-accurate name that's being maintained for
-             compatibility with outside code. This function is used even if
-             display connection is parallel.
-    @return  Unsigned 8-bit value read (always zero if USE_FAST_PINIO is
-             not supported by the MCU architecture).
-*/
-uint8_t Adafruit_SPITFT::spiRead(void) {
-  uint8_t b = 0;
-  uint16_t w = 0;
-  return hwspi._spi->transfer((uint8_t)0);
-}
+// /*!
+//     @brief   Read a single 8-bit value from the display. Chip-select and
+//              transaction must have been previously set -- this ONLY reads
+//              the byte. This is another of those functions in the library
+//              with a now-not-accurate name that's being maintained for
+//              compatibility with outside code. This function is used even if
+//              display connection is parallel.
+//     @return  Unsigned 8-bit value read (always zero if USE_FAST_PINIO is
+//              not supported by the MCU architecture).
+// */
+// uint8_t Adafruit_SPITFT::spiRead(void) {
+//   uint8_t b = 0;
+//   uint16_t w = 0;
+//   return hwspi._spi->transfer((uint8_t)0);
+// }
 
 /*!
     @brief  Issue a single 16-bit value to the display. Chip-select,
@@ -1142,8 +1151,7 @@ uint8_t Adafruit_SPITFT::spiRead(void) {
 */
 void Adafruit_SPITFT::SPI_WRITE16(uint16_t w) {
     // MSB, LSB because TFTs are generally big-endian
-    hwspi._spi->transfer(w >> 8);
-    hwspi._spi->transfer(w);
+    HAL_SPI_Transmit_DMA(hwspi._spi, (uint8_t *) &w, 2);
 }
 
 /*!
@@ -1157,64 +1165,5 @@ void Adafruit_SPITFT::SPI_WRITE16(uint16_t w) {
     @param  l  32-bit value to write.
 */
 void Adafruit_SPITFT::SPI_WRITE32(uint32_t l) {
-    hwspi._spi->transfer(l >> 24);
-    hwspi._spi->transfer(l >> 16);
-    hwspi._spi->transfer(l >> 8);
-    hwspi._spi->transfer(l);
+  HAL_SPI_Transmit_DMA(hwspi._spi, (uint8_t *) &l, 4);
 }
-
-/*!
-    @brief  Set the WR line LOW, then HIGH. Used for parallel-connected
-            interfaces when writing data.
-*/
-// inline void Adafruit_SPITFT::TFT_WR_STROBE(void) {
-// #if defined(USE_FAST_PINIO)
-// #if defined(HAS_PORT_SET_CLR)
-// #if defined(KINETISK)
-//   *tft8.wrPortClr = 1;
-//   *tft8.wrPortSet = 1;
-// #else  // !KINETISK
-//   *tft8.wrPortClr = tft8.wrPinMask;
-//   *tft8.wrPortSet = tft8.wrPinMask;
-// #endif // end !KINETISK
-// #else  // !HAS_PORT_SET_CLR
-//   *tft8.wrPort &= tft8.wrPinMaskClr;
-//   *tft8.wrPort |= tft8.wrPinMaskSet;
-// #endif // end !HAS_PORT_SET_CLR
-// #else  // !USE_FAST_PINIO
-//   digitalWrite(tft8._wr, LOW);
-//   digitalWrite(tft8._wr, HIGH);
-// #endif // end !USE_FAST_PINIO
-// }
-
-/*!
-    @brief  Set the RD line HIGH. Used for parallel-connected interfaces
-            when reading data.
-*/
-// inline void Adafruit_SPITFT::TFT_RD_HIGH(void) {
-// #if defined(USE_FAST_PINIO)
-// #if defined(HAS_PORT_SET_CLR)
-//   *tft8.rdPortSet = tft8.rdPinMask;
-// #else  // !HAS_PORT_SET_CLR
-//   *tft8.rdPort |= tft8.rdPinMaskSet;
-// #endif // end !HAS_PORT_SET_CLR
-// #else  // !USE_FAST_PINIO
-//   digitalWrite(tft8._rd, HIGH);
-// #endif // end !USE_FAST_PINIO
-// }
-
-/*!
-    @brief  Set the RD line LOW. Used for parallel-connected interfaces
-            when reading data.
-*/
-// inline void Adafruit_SPITFT::TFT_RD_LOW(void) {
-// #if defined(USE_FAST_PINIO)
-// #if defined(HAS_PORT_SET_CLR)
-//   *tft8.rdPortClr = tft8.rdPinMask;
-// #else  // !HAS_PORT_SET_CLR
-//   *tft8.rdPort &= tft8.rdPinMaskClr;
-// #endif // end !HAS_PORT_SET_CLR
-// #else  // !USE_FAST_PINIO
-//   digitalWrite(tft8._rd, LOW);
-// #endif // end !USE_FAST_PINIO
-// }

@@ -4,40 +4,14 @@
 // CONSTRUCTORS ************************************************************
 
 /*!
-    @brief  Instantiate Adafruit ST7735 driver with software SPI
-    @param  cs    Chip select pin #
-    @param  dc    Data/Command pin #
-    @param  mosi  SPI MOSI pin #
-    @param  sclk  SPI Clock pin #
-    @param  rst   Reset pin # (optional, pass -1 if unused)
-*/
-Adafruit_ST7735::Adafruit_ST7735(int8_t cs, int8_t dc, int8_t mosi, int8_t sclk,
-                                 int8_t rst)
-    : Adafruit_ST77xx(ST7735_TFTWIDTH_128, ST7735_TFTHEIGHT_160, cs, dc, mosi,
-                      sclk, rst) {}
-
-/*!
-    @brief  Instantiate Adafruit ST7735 driver with default hardware SPI
-    @param  cs   Chip select pin #
-    @param  dc   Data/Command pin #
-    @param  rst  Reset pin # (optional, pass -1 if unused)
-*/
-Adafruit_ST7735::Adafruit_ST7735(int8_t cs, int8_t dc, int8_t rst)
-    : Adafruit_ST77xx(ST7735_TFTWIDTH_128, ST7735_TFTHEIGHT_160, cs, dc, rst) {}
-
-#if !defined(ESP8266)
-/*!
     @brief  Instantiate Adafruit ST7735 driver with selectable hardware SPI
     @param  spiClass  Pointer to an SPI device to use (e.g. &SPI1)
     @param  cs        Chip select pin #
     @param  dc        Data/Command pin #
     @param  rst       Reset pin # (optional, pass -1 if unused)
 */
-Adafruit_ST7735::Adafruit_ST7735(SPIClass *spiClass, int8_t cs, int8_t dc,
-                                 int8_t rst)
-    : Adafruit_ST77xx(ST7735_TFTWIDTH_128, ST7735_TFTHEIGHT_160, spiClass, cs,
-                      dc, rst) {}
-#endif // end !ESP8266
+Adafruit_ST7735::Adafruit_ST7735(SPI_HandleTypeDef *spiHandle, int16_t cs, GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, int8_t rst)
+    : Adafruit_ST77xx(ST7735_TFTWIDTH_128, ST7735_TFTHEIGHT_160, spiHandle, cs, cs_port, dc, dc_port, rst) {}
 
 // SCREEN INITIALIZATION ***************************************************
 

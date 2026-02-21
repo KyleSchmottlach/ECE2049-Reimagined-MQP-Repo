@@ -21,9 +21,7 @@
 #define _ADAFRUIT_SPITFT_H_
 
 #include "Adafruit_GFX.h"
-#include "stm32h533xx.h"
-#include "stm32h5xx_hal_gpio.h"
-// #include <SPI.h>
+#include "stm32h5xx_hal.h"
 
 // HARDWARE CONFIG ---------------------------------------------------------
 typedef uint32_t ADAGFX_PORT_t; ///< PORT values are 32-bit
@@ -197,6 +195,8 @@ public:
 
   // Despite parallel additions, function names kept for compatibility:
   void spiWrite(uint8_t b);          // Write single byte as DATA
+  void spiWriteData(uint8_t *data, uint32_t len); // Write array of bytes as DATA
+  void spiWriteData(const uint8_t *data, uint32_t len); // Write array of bytes as DATA
   void writeCommand(uint8_t cmd);    // Write single byte as COMMAND
   uint8_t spiRead(void);             // Read single byte of data
   void write16(uint16_t w);          // Write 16-bit value as DATA
@@ -265,8 +265,8 @@ protected:
   inline void SPI_SCK_HIGH(void);
   inline void SPI_SCK_LOW(void);
   inline bool SPI_MISO_READ(void);
-  inline void SPI_BEGIN_TRANSACTION(void);
-  inline void SPI_END_TRANSACTION(void);
+  // inline void SPI_BEGIN_TRANSACTION(void);
+  // inline void SPI_END_TRANSACTION(void);
   inline void TFT_WR_STROBE(void); // Parallel interface write strobe
   inline void TFT_RD_HIGH(void);   // Parallel interface read high
   inline void TFT_RD_LOW(void);    // Parallel interface read low

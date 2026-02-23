@@ -55,6 +55,8 @@ public:
   void setBacklightFreq(uint16_t freq);
   void tftReset(bool rst = true);
   uint32_t readButtons();
+
+  using Adafruit_seesaw::begin;
 };
 
 #endif

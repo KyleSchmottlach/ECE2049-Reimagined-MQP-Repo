@@ -23,7 +23,10 @@
 
 #include "stdlib.h"
 #include "Print.h"
+#include "Math_Helpers.h"
 #include "stm32h5xx_hal.h"
+#include "stm32h5xx_hal_i2c.h"
+#include <cstddef>
 
 // #include "Adafruit_I2CDevice.h"
 // #include <Arduino.h>
@@ -186,11 +189,11 @@ enum {
 #define PWM_2_PIN 6 ///< default PWM output pin
 #define PWM_3_PIN 7 ///< default PWM output pin
 
-#ifndef INPUT_PULLDOWN
-#define INPUT_PULLDOWN                                                         \
-  0x03 ///< for compatibility with platforms that do not already define
-       ///< INPUT_PULLDOWN
-#endif
+#define INPUT 0x00
+#define OUTPUT 0x01
+#define INPUT_PULLUP 0x02
+#define INPUT_PULLDOWN 0x03 ///< for compatibility with platforms that do not already define
+                            ///< INPUT_PULLDOWN
 
 /*=========================================================================*/
 // clang-format off
@@ -239,7 +242,7 @@ union keyState {
 class Adafruit_seesaw : public Print {
 public:
   // constructors
-  Adafruit_seesaw(TwoWire *Wi = NULL);
+  Adafruit_seesaw(I2C_HandleTypeDef *i2c_bus = NULL);
   ~Adafruit_seesaw(void){};
 
   bool begin(uint8_t addr = SEESAW_ADDRESS, bool reset = true);
@@ -303,14 +306,16 @@ public:
   virtual size_t write(const char *str);
 
 protected:
-  TwoWire *_i2cbus; /*!< The I2C Bus used to communicate with the seesaw */
-  Adafruit_I2CDevice *_i2c_dev = NULL; ///< The BusIO device for I2C control
+  I2C_HandleTypeDef *_i2cbus; /*!< The I2C Bus used to communicate with the seesaw */
+  // Adafruit_I2CDevice *_i2c_dev = NULL; ///< The BusIO device for I2C control
+
+  uint8_t _addr;
 
   uint8_t _hardwaretype = 0; /*!< what hardware type is attached! */
   uint8_t getI2CaddrEEPROMloc();
 
-  bool write8(byte regHigh, byte regLow, byte value);
-  uint8_t read8(byte regHigh, byte regLow, uint16_t delay = 250);
+  bool write8(uint8_t regHigh, uint8_t regLow, uint8_t value);
+  uint8_t read8(uint8_t regHigh, uint8_t regLow, uint16_t delay = 250);
 
   bool read(uint8_t regHigh, uint8_t regLow, uint8_t *buf, uint8_t num,
             uint16_t delay = 250);

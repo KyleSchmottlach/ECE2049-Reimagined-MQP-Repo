@@ -27,7 +27,9 @@
  */
 
 #include "Adafruit_seesaw.h"
-// #include <Arduino.h>
+#include "stm32h5xx_hal.h"
+#include "stm32h5xx_hal_i2c.h"
+#include "system_stm32h5xx.h"
 
 //#define SEESAW_I2C_DEBUG
 
@@ -37,12 +39,8 @@
  *
  *  @param      i2c_bus the I2C bus connected to the seesaw, defaults to "Wire"
  ****************************************************************************************/
-Adafruit_seesaw::Adafruit_seesaw(TwoWire *i2c_bus) {
-  if (i2c_bus == NULL) {
-    _i2cbus = &Wire;
-  } else {
-    _i2cbus = i2c_bus;
-  }
+Adafruit_seesaw::Adafruit_seesaw(I2C_HandleTypeDef *i2c_bus) {
+  _i2cbus = i2c_bus;
 }
 
 /*!
@@ -59,15 +57,11 @@ Adafruit_seesaw::Adafruit_seesaw(TwoWire *i2c_bus) {
  *  @return     true if we could connect to the seesaw, false otherwise
  ****************************************************************************************/
 bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
-  if (_i2c_dev) {
-    delete _i2c_dev;
-  }
-
-  _i2c_dev = new Adafruit_I2CDevice(addr, _i2cbus);
+  _addr = addr;
 
   bool found = false;
   for (int retries = 0; retries < 10; retries++) {
-    if (_i2c_dev->begin()) {
+    if (HAL_I2C_IsDeviceReady(_i2cbus, _addr, 1, HAL_MAX_DELAY) == HAL_OK) {
       found = true;
       break;
     }
@@ -78,15 +72,11 @@ bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
     return false;
   }
 
-#ifdef SEESAW_I2C_DEBUG
-  Serial.println("Begun");
-#endif
-
   if (reset) {
     found = false;
     SWReset();
     for (int retries = 0; retries < 10; retries++) {
-      if (_i2c_dev->detected()) {
+      if (HAL_I2C_IsDeviceReady(_i2cbus, _addr, 1, HAL_MAX_DELAY) == HAL_OK) {
         found = true;
         break;
       }
@@ -97,10 +87,6 @@ bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
   if (!found) {
     return false;
   }
-
-#ifdef SEESAW_I2C_DEBUG
-  Serial.println("Reset");
-#endif
 
   found = false;
   for (int retries = 0; !found && retries < 10; retries++) {
@@ -117,10 +103,6 @@ bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
 
     HAL_Delay(10);
   }
-
-#ifdef SEESAW_I2C_DEBUG
-  Serial.println("Done!");
-#endif
 
   return found;
 }
@@ -335,7 +317,7 @@ uint16_t Adafruit_seesaw::analogRead(uint8_t pin) {
 
   this->read(SEESAW_ADC_BASE, SEESAW_ADC_CHANNEL_OFFSET + p, buf, 2, 500);
   uint16_t ret = ((uint16_t)buf[0] << 8) | buf[1];
-  delay(1);
+  HAL_Delay(1);
   return ret;
 }
 
@@ -670,7 +652,7 @@ uint8_t Adafruit_seesaw::getI2CaddrEEPROMloc() {
  ****************************************************************************************/
 void Adafruit_seesaw::setI2CAddr(uint8_t addr) {
   this->EEPROMWrite8(getI2CaddrEEPROMloc(), addr);
-  delay(250);
+  HAL_Delay(250);
   this->begin(addr); // restart w/ the new addr
 }
 
@@ -884,7 +866,7 @@ bool Adafruit_seesaw::disableEncoderInterrupt(uint8_t encoder) {
  *	@param		value the value between 0 and 255 to write
  *  @returns    True on I2C write success
  ****************************************************************************************/
-bool Adafruit_seesaw::write8(byte regHigh, byte regLow, byte value) {
+bool Adafruit_seesaw::write8(uint8_t regHigh, uint8_t regLow, uint8_t value) {
   return this->write(regHigh, regLow, &value, 1);
 }
 
@@ -901,7 +883,7 @@ bool Adafruit_seesaw::write8(byte regHigh, byte regLow, byte value) {
  *
  *  @return     the value between 0 and 255 read from the passed register
  ****************************************************************************************/
-uint8_t Adafruit_seesaw::read8(byte regHigh, byte regLow, uint16_t delay) {
+uint8_t Adafruit_seesaw::read8(uint8_t regHigh, uint8_t regLow, uint16_t delay) {
   uint8_t ret;
   this->read(regHigh, regLow, &ret, 1, delay);
 
@@ -938,7 +920,7 @@ bool Adafruit_seesaw::read(uint8_t regHigh, uint8_t regLow, uint8_t *buf,
     }
 
     // TODO: tune this
-    HAL_Delay(delay / 1000); // Convert microseconds to milliseconds for HAL_Delay
+    HAL_Delay(delay / 1000); // TODO: Replace with DWT delay for more accurate timing: https://deepbluembedded.com/stm32-delay-microsecond-millisecond-utility-dwt-delay-timer-delay/
 
 #ifdef SEESAW_I2C_DEBUG
     Serial.print("Reading ");

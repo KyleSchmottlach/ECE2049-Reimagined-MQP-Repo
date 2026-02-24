@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32h5xx_hal_i2c.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -128,6 +129,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    HAL_I2C_Master_Transmit_DMA(&hi2c1, 0x50, (uint8_t *)"Hello", 5);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

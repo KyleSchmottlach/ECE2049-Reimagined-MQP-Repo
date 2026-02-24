@@ -4,12 +4,11 @@
 /*!
     @brief  set up the TFT shield
     @param  addr optional address the seesaw chip can be found on
-    @param  flow optional flow control pin to use
     @returns true on success, false on error
 */
 /**************************************************************************/
-bool Adafruit_TFTShield18::begin(uint8_t addr, int8_t flow) {
-  if (!Adafruit_seesaw::begin(addr, flow)) {
+bool Adafruit_TFTShield18::begin(uint8_t addr) {
+  if (!Adafruit_seesaw::begin(addr)) {
     return false;
   }
 

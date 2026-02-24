@@ -53,18 +53,12 @@ Adafruit_seesaw::Adafruit_seesaw(TwoWire *i2c_bus) {
  *connecting to the seesaw
  *
  *  @param      addr the I2C address of the seesaw
- *  @param      flow the flow control pin to use
  *  @param		reset pass true to reset the seesaw on startup. Defaults
  *to true.
  *
  *  @return     true if we could connect to the seesaw, false otherwise
  ****************************************************************************************/
-bool Adafruit_seesaw::begin(uint8_t addr, int8_t flow, bool reset) {
-  _flow = flow;
-
-  if (_flow != -1)
-    ::pinMode(_flow, INPUT);
-
+bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
   if (_i2c_dev) {
     delete _i2c_dev;
   }
@@ -77,7 +71,7 @@ bool Adafruit_seesaw::begin(uint8_t addr, int8_t flow, bool reset) {
       found = true;
       break;
     }
-    delay(10);
+    HAL_Delay(10);
   }
 
   if (!found) {
@@ -96,7 +90,7 @@ bool Adafruit_seesaw::begin(uint8_t addr, int8_t flow, bool reset) {
         found = true;
         break;
       }
-      delay(10);
+      HAL_Delay(10);
     }
   }
 
@@ -121,7 +115,7 @@ bool Adafruit_seesaw::begin(uint8_t addr, int8_t flow, bool reset) {
       _hardwaretype = c;
     }
 
-    delay(10);
+    HAL_Delay(10);
   }
 
 #ifdef SEESAW_I2C_DEBUG
@@ -939,22 +933,12 @@ bool Adafruit_seesaw::read(uint8_t regHigh, uint8_t regLow, uint8_t *buf,
   while (pos < num) {
     uint8_t read_now = min(32, num - pos);
 
-    if (_flow != -1) {
-      while (!::digitalRead(_flow))
-        yield();
-    }
-
     if (!_i2c_dev->write(prefix, 2)) {
       return false;
     }
 
     // TODO: tune this
-    delayMicroseconds(delay);
-
-    if (_flow != -1) {
-      while (!::digitalRead(_flow))
-        yield();
-    }
+    HAL_Delay(delay / 1000); // Convert microseconds to milliseconds for HAL_Delay
 
 #ifdef SEESAW_I2C_DEBUG
     Serial.print("Reading ");
@@ -992,10 +976,6 @@ bool Adafruit_seesaw::write(uint8_t regHigh, uint8_t regLow,
   uint8_t prefix[2];
   prefix[0] = (uint8_t)regHigh;
   prefix[1] = (uint8_t)regLow;
-
-  if (_flow != -1)
-    while (!::digitalRead(_flow))
-      yield();
 
   if (!_i2c_dev->write(buf, num, true, prefix, 2)) {
     return false;

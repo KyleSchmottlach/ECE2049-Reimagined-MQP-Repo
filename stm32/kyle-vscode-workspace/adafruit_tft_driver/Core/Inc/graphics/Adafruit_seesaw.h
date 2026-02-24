@@ -23,6 +23,7 @@
 
 #include "stdlib.h"
 #include "Print.h"
+#include "stm32h5xx_hal.h"
 
 // #include "Adafruit_I2CDevice.h"
 // #include <Arduino.h>
@@ -241,8 +242,7 @@ public:
   Adafruit_seesaw(TwoWire *Wi = NULL);
   ~Adafruit_seesaw(void){};
 
-  bool begin(uint8_t addr = SEESAW_ADDRESS, int8_t flow = -1,
-             bool reset = true);
+  bool begin(uint8_t addr = SEESAW_ADDRESS, bool reset = true);
   uint32_t getOptions();
   uint32_t getVersion();
   bool getProdDatecode(uint16_t *pid, uint8_t *year, uint8_t *mon,
@@ -305,8 +305,6 @@ public:
 protected:
   TwoWire *_i2cbus; /*!< The I2C Bus used to communicate with the seesaw */
   Adafruit_I2CDevice *_i2c_dev = NULL; ///< The BusIO device for I2C control
-
-  int8_t _flow; /*!< The flow control pin to use */
 
   uint8_t _hardwaretype = 0; /*!< what hardware type is attached! */
   uint8_t getI2CaddrEEPROMloc();

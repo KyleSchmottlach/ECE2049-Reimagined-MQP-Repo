@@ -49,7 +49,7 @@ public:
   Adafruit_TFTShield18(){};
   ~Adafruit_TFTShield18(){};
 
-  bool begin(uint8_t addr = TFTSHIELD_ADDR, int8_t flow = -1);
+  bool begin(uint8_t addr = TFTSHIELD_ADDR);
 
   void setBacklight(uint16_t value);
   void setBacklightFreq(uint16_t freq);

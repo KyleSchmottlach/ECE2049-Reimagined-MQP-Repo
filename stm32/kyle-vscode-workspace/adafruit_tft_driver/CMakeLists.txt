@@ -64,6 +64,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/graphics/Print.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/graphics/Adafruit_seesaw.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/graphics/Adafruit_TFTShield18.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/dwt_module.c
 )
 
 # Add include paths

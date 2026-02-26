@@ -28,8 +28,8 @@
 
 #include "Adafruit_seesaw.h"
 #include "stm32h5xx_hal.h"
+#include "dwt_module.h"
 #include "stm32h5xx_hal_i2c.h"
-#include "system_stm32h5xx.h"
 
 //#define SEESAW_I2C_DEBUG
 
@@ -60,12 +60,16 @@ bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
   _addr = addr;
 
   bool found = false;
+  if (!DWT_CheckInitialized()) {
+    printf("DWT not initialized, attempting to initialize...\n\r");
+    if(!DWT_Init()) printf("Could not initialize DWT!\n\r");
+  }
   for (int retries = 0; retries < 10; retries++) {
     if (HAL_I2C_IsDeviceReady(_i2cbus, _addr, 1, HAL_MAX_DELAY) == HAL_OK) {
       found = true;
       break;
     }
-    HAL_Delay(10);
+    DWT_Delay_ms(10);
   }
 
   if (!found) {
@@ -80,7 +84,7 @@ bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
         found = true;
         break;
       }
-      HAL_Delay(10);
+      DWT_Delay_ms(10);
     }
   }
 
@@ -101,7 +105,7 @@ bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
       _hardwaretype = c;
     }
 
-    HAL_Delay(10);
+    DWT_Delay_ms(10);
   }
 
   return found;
@@ -317,7 +321,7 @@ uint16_t Adafruit_seesaw::analogRead(uint8_t pin) {
 
   this->read(SEESAW_ADC_BASE, SEESAW_ADC_CHANNEL_OFFSET + p, buf, 2, 500);
   uint16_t ret = ((uint16_t)buf[0] << 8) | buf[1];
-  HAL_Delay(1);
+  DWT_Delay_ms(1);
   return ret;
 }
 
@@ -652,7 +656,7 @@ uint8_t Adafruit_seesaw::getI2CaddrEEPROMloc() {
  ****************************************************************************************/
 void Adafruit_seesaw::setI2CAddr(uint8_t addr) {
   this->EEPROMWrite8(getI2CaddrEEPROMloc(), addr);
-  HAL_Delay(250);
+  DWT_Delay_ms(250);
   this->begin(addr); // restart w/ the new addr
 }
 
@@ -915,12 +919,14 @@ bool Adafruit_seesaw::read(uint8_t regHigh, uint8_t regLow, uint8_t *buf,
   while (pos < num) {
     uint8_t read_now = min(32, num - pos);
 
-    if (!_i2c_dev->write(prefix, 2)) {
+    if(HAL_I2C_Master_Transmit_DMA(_i2cbus, _addr << 1, prefix, 2) != HAL_OK)
       return false;
-    }
+
+    //Block while waiting for write to finish from DMA
+    while(HAL_I2C_GetState(_i2cbus) == HAL_I2C_STATE_BUSY_TX);
 
     // TODO: tune this
-    HAL_Delay(delay / 1000); // TODO: Replace with DWT delay for more accurate timing: https://deepbluembedded.com/stm32-delay-microsecond-millisecond-utility-dwt-delay-timer-delay/
+    DWT_Delay_us(delay);
 
 #ifdef SEESAW_I2C_DEBUG
     Serial.print("Reading ");
@@ -928,9 +934,12 @@ bool Adafruit_seesaw::read(uint8_t regHigh, uint8_t regLow, uint8_t *buf,
     Serial.println(" bytes");
 #endif
 
-    if (!_i2c_dev->read(buf + pos, read_now)) {
+    if(HAL_I2C_Master_Receive_DMA(_i2cbus, _addr << 1, buf + pos, read_now) != HAL_OK)
       return false;
-    }
+
+    //Block while waiting for read to finish from DMA
+    while(HAL_I2C_GetState(_i2cbus) == HAL_I2C_STATE_BUSY_RX);
+
     pos += read_now;
 #ifdef SEESAW_I2C_DEBUG
     Serial.print("pos: ");
@@ -955,13 +964,25 @@ bool Adafruit_seesaw::read(uint8_t regHigh, uint8_t regLow, uint8_t *buf,
  ****************************************************************************************/
 bool Adafruit_seesaw::write(uint8_t regHigh, uint8_t regLow,
                             uint8_t *buf = NULL, uint8_t num = 0) {
-  uint8_t prefix[2];
-  prefix[0] = (uint8_t)regHigh;
-  prefix[1] = (uint8_t)regLow;
-
-  if (!_i2c_dev->write(buf, num, true, prefix, 2)) {
+  if(num + PREFIX_LEN > 32){
+    printf("ERROR: I2C write too long. Max is 30 bytes of data plus 2 bytes of prefix.\n\r");
     return false;
   }
+
+  // Declare buffer and initialize to 0s
+  uint8_t tx_buf[MAX_I2C_BUFFER] = {0};
+
+  // Add prefix into buffer
+  tx_buf[0] = regHigh;
+  tx_buf[1] = regLow;
+
+  memcpy(&tx_buf[2], buf, num);
+
+  if(HAL_I2C_Master_Transmit_DMA(_i2cbus, _addr << 1, tx_buf, num + PREFIX_LEN) != HAL_OK)
+    return false;
+  
+  // Block while waiting for write to finish from DMA
+  while(HAL_I2C_GetState(_i2cbus) == HAL_I2C_STATE_BUSY_TX);
 
   return true;
 }
@@ -980,7 +1001,7 @@ bool Adafruit_seesaw::write(uint8_t regHigh, uint8_t regLow,
 size_t Adafruit_seesaw::write(uint8_t character) {
   // TODO: add support for multiple sercoms
   this->write8(SEESAW_SERCOM0_BASE, SEESAW_SERCOM_DATA, character);
-  delay(1); // TODO: this can be optimized... it's only needed for longer writes
+  DWT_Delay_ms(1); // TODO: this can be optimized... it's only needed for longer writes
   return 1;
 }
 

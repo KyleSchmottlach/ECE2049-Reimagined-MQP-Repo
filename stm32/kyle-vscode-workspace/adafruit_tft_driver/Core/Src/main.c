@@ -136,44 +136,41 @@ int main(void)
 
   if(!DWT_CheckInitialized()) printf("DWT failed to initialize!\n\r");
 
-  TFTShield18_Handle* handle = TFTShield18_create(&hi2c1);
-  if (!TFTShield18_begin(handle, TFTSHIELD_ADDR))
+  TFTShield18_Handle* seesaw = TFTShield18_create(&hi2c1);
+  if (!TFTShield18_begin(seesaw, TFTSHIELD_ADDR))
   {
     printf("Failed to initialize TFT shield!\n\r");
   } else {
     printf("TFT shield initialized successfully!\n\r");
   }
 
-  TFTShield18_setBacklight(handle, TFTSHIELD_BACKLIGHT_OFF);
+  TFTShield18_setBacklight(seesaw, TFTSHIELD_BACKLIGHT_OFF);
 
   for (int32_t i=TFTSHIELD_BACKLIGHT_OFF; i<TFTSHIELD_BACKLIGHT_ON; i+=100) {
-    TFTShield18_setBacklight(handle, i);
+    TFTShield18_setBacklight(seesaw, i);
     HAL_Delay(1);
   }
 
+  uint32_t lastButtonState = TFTSHIELD_BUTTON_ALL;
+
   while (1)
   {
-    // bool devFound = false;
-    // HAL_StatusTypeDef devFoundStatus = HAL_OK;
-    // for (int i = 0; i < 10; i++) {
-    //   devFoundStatus = HAL_I2C_IsDeviceReady(&hi2c1, 0x2E << 1, 1, HAL_MAX_DELAY);
+    
+    uint32_t buttons = TFTShield18_readButtons(seesaw);
 
-    //   if (devFoundStatus == HAL_OK) {
-    //     devFound = true;
-    //     break;
-    //   }
-    //   HAL_Delay(10);
-    // }
+    if(lastButtonState != buttons) {
+      if(!(buttons & TFTSHIELD_BUTTON_1)) printf("Button 1\n\r");
+      if(!(buttons & TFTSHIELD_BUTTON_2)) printf("Button 2\n\r");
+      if(!(buttons & TFTSHIELD_BUTTON_3)) printf("Button 3\n\r");
+      if(!(buttons & TFTSHIELD_BUTTON_DOWN)) printf("Button DOWN\n\r");
+      if(!(buttons & TFTSHIELD_BUTTON_UP)) printf("Button UP\n\r");
+      if(!(buttons & TFTSHIELD_BUTTON_LEFT)) printf("Button LEFT\n\r");
+      if(!(buttons & TFTSHIELD_BUTTON_RIGHT)) printf("Button RIGHT\n\r");
+      if(!(buttons & TFTSHIELD_BUTTON_IN)) printf("Button SELECT\n\r");
+    }
 
-    // if (!devFound)
-    // {
-    //   printf("I2C display device not found! Status code: %d, I2C Error: %d\n\r", devFoundStatus, HAL_I2C_GetError(&hi2c1));
-    // } else {
-    //   printf("I2C display device found! Status code: %d, I2C Error: %d\n\r", devFoundStatus, HAL_I2C_GetError(&hi2c1));
-    // }
-    // HAL_Delay(3000);
-
-
+    lastButtonState = buttons;
+    DWT_Delay_ms(100);
 
     /* USER CODE END WHILE */
 

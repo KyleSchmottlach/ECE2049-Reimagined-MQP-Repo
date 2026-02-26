@@ -25,7 +25,6 @@
 #include "Print.h"
 #include "Math_Helpers.h"
 #include "stm32h5xx_hal.h"
-#include "stm32h5xx_hal_i2c.h"
 #include <cstddef>
 
 // #include "Adafruit_I2CDevice.h"
@@ -253,6 +252,8 @@ public:
   uint32_t getVersion();
   bool getProdDatecode(uint16_t *pid, uint8_t *year, uint8_t *mon,
                        uint8_t *day);
+
+  void setI2CBus(I2C_HandleTypeDef *i2c_bus);
 
   bool SWReset();
 

@@ -29,7 +29,6 @@
 #include "Adafruit_seesaw.h"
 #include "stm32h5xx_hal.h"
 #include "dwt_module.h"
-#include "stm32h5xx_hal_i2c.h"
 
 //#define SEESAW_I2C_DEBUG
 
@@ -40,6 +39,10 @@
  *  @param      i2c_bus the I2C bus connected to the seesaw, defaults to "Wire"
  ****************************************************************************************/
 Adafruit_seesaw::Adafruit_seesaw(I2C_HandleTypeDef *i2c_bus) {
+  _i2cbus = i2c_bus;
+}
+
+void Adafruit_seesaw::setI2CBus(I2C_HandleTypeDef *i2c_bus) {
   _i2cbus = i2c_bus;
 }
 
@@ -65,7 +68,7 @@ bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
     if(!DWT_Init()) printf("Could not initialize DWT!\n\r");
   }
   for (int retries = 0; retries < 10; retries++) {
-    if (HAL_I2C_IsDeviceReady(_i2cbus, _addr, 1, HAL_MAX_DELAY) == HAL_OK) {
+    if (HAL_I2C_IsDeviceReady(_i2cbus, _addr << 1, 1, HAL_MAX_DELAY) == HAL_OK) {
       found = true;
       break;
     }
@@ -80,7 +83,7 @@ bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
     found = false;
     SWReset();
     for (int retries = 0; retries < 10; retries++) {
-      if (HAL_I2C_IsDeviceReady(_i2cbus, _addr, 1, HAL_MAX_DELAY) == HAL_OK) {
+      if (HAL_I2C_IsDeviceReady(_i2cbus, _addr << 1, 1, HAL_MAX_DELAY) == HAL_OK) {
         found = true;
         break;
       }

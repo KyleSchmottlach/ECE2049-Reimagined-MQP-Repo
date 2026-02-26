@@ -18,12 +18,11 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stm32h5xx_hal_i2c.h"
-#include "dwt_module.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "dwt_module.h"
+#include "Adafruit_TFTShield18_API.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -70,6 +69,8 @@ static void MX_I2C1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+uint8_t i2c_buffer[1] = {1};
+
 /* USER CODE END 0 */
 
 /**
@@ -107,7 +108,7 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
-  if(!DWT_Init()) printf("DWT failed to initialize!\n\r");
+  DWT_Init();
 
   /* USER CODE END 2 */
 
@@ -130,9 +131,50 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  printf("HCLK Frequency: %u Hz\n\r", HAL_RCC_GetHCLKFreq());
+
+  if(!DWT_CheckInitialized()) printf("DWT failed to initialize!\n\r");
+
+  TFTShield18_Handle* handle = TFTShield18_create(&hi2c1);
+  if (!TFTShield18_begin(handle, TFTSHIELD_ADDR))
+  {
+    printf("Failed to initialize TFT shield!\n\r");
+  } else {
+    printf("TFT shield initialized successfully!\n\r");
+  }
+
+  TFTShield18_setBacklight(handle, TFTSHIELD_BACKLIGHT_OFF);
+
+  for (int32_t i=TFTSHIELD_BACKLIGHT_OFF; i<TFTSHIELD_BACKLIGHT_ON; i+=100) {
+    TFTShield18_setBacklight(handle, i);
+    HAL_Delay(1);
+  }
+
   while (1)
   {
-    HAL_I2C_Master_Transmit_DMA(&hi2c1, 0x50, (uint8_t *)"Hello", 5);
+    // bool devFound = false;
+    // HAL_StatusTypeDef devFoundStatus = HAL_OK;
+    // for (int i = 0; i < 10; i++) {
+    //   devFoundStatus = HAL_I2C_IsDeviceReady(&hi2c1, 0x2E << 1, 1, HAL_MAX_DELAY);
+
+    //   if (devFoundStatus == HAL_OK) {
+    //     devFound = true;
+    //     break;
+    //   }
+    //   HAL_Delay(10);
+    // }
+
+    // if (!devFound)
+    // {
+    //   printf("I2C display device not found! Status code: %d, I2C Error: %d\n\r", devFoundStatus, HAL_I2C_GetError(&hi2c1));
+    // } else {
+    //   printf("I2C display device found! Status code: %d, I2C Error: %d\n\r", devFoundStatus, HAL_I2C_GetError(&hi2c1));
+    // }
+    // HAL_Delay(3000);
+
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

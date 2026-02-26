@@ -1,5 +1,8 @@
 #include "Adafruit_TFTShield18.h"
 
+Adafruit_TFTShield18::Adafruit_TFTShield18() : Adafruit_seesaw() {}
+Adafruit_TFTShield18::Adafruit_TFTShield18(I2C_HandleTypeDef *i2c_handle) : Adafruit_seesaw(i2c_handle) {}
+
 /**************************************************************************/
 /*!
     @brief  set up the TFT shield

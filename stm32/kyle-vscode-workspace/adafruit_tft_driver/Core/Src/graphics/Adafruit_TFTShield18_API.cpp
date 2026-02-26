@@ -12,8 +12,8 @@ struct TFTShield18_Handle {
 
 static TFTShield18_Handle seesaw;
 
-TFTShield18_Handle* TFTShield18_create() {
-    seesaw = TFTShield18_Handle{Adafruit_TFTShield18()};
+TFTShield18_Handle* TFTShield18_create(I2C_HandleTypeDef *i2c_handle) {
+    seesaw = TFTShield18_Handle{Adafruit_TFTShield18(i2c_handle)};
     return &seesaw;
 }
 

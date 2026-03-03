@@ -301,6 +301,7 @@ void Adafruit_SPITFT::writeColor(uint16_t color, uint32_t len) {
   if (connection == TFT_HARD_SPI) {
     while (len--) {
       HAL_SPI_Transmit_DMA(hwspi._spi, data, 2);
+      while(hwspi._spi->State != HAL_SPI_STATE_READY); // Wait for the SPI transmission to complete
     }
   }
 }
@@ -937,8 +938,8 @@ void Adafruit_SPITFT::sendCommand16(uint16_t commandWord,
     @param  b  8-bit value to write.
 */
 void Adafruit_SPITFT::spiWrite(uint8_t b) {
-  while(hwspi._spi->State != HAL_SPI_STATE_READY); // Wait for the SPI transmission to complete
   HAL_SPI_Transmit_DMA(hwspi._spi, &b, 1);
+  while(hwspi._spi->State != HAL_SPI_STATE_READY); // Wait for the SPI transmission to complete
 }
 
 void Adafruit_SPITFT::spiWriteData(uint8_t *data, uint32_t len) {
@@ -946,8 +947,8 @@ void Adafruit_SPITFT::spiWriteData(uint8_t *data, uint32_t len) {
 }
 
 void Adafruit_SPITFT::spiWriteData(const uint8_t *data, uint32_t len) {
-  while(hwspi._spi->State != HAL_SPI_STATE_READY); // Wait for the SPI transmission to complete
   HAL_SPI_Transmit_DMA(hwspi._spi, data, len);
+  while(hwspi._spi->State != HAL_SPI_STATE_READY); // Wait for the SPI transmission to complete
 }
 
 /*!
@@ -1152,6 +1153,7 @@ void Adafruit_SPITFT::writeCommand(uint8_t cmd) {
 void Adafruit_SPITFT::SPI_WRITE16(uint16_t w) {
     // MSB, LSB because TFTs are generally big-endian
     HAL_SPI_Transmit_DMA(hwspi._spi, (uint8_t *) &w, 2);
+    while(hwspi._spi->State != HAL_SPI_STATE_READY); // Wait for the SPI transmission to complete
 }
 
 /*!
@@ -1166,4 +1168,5 @@ void Adafruit_SPITFT::SPI_WRITE16(uint16_t w) {
 */
 void Adafruit_SPITFT::SPI_WRITE32(uint32_t l) {
   HAL_SPI_Transmit_DMA(hwspi._spi, (uint8_t *) &l, 4);
+  while(hwspi._spi->State != HAL_SPI_STATE_READY); // Wait for the SPI transmission to complete
 }

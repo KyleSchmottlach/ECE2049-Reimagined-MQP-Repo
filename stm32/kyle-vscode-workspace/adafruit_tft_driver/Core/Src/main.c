@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "dwt_module.h"
 #include "Adafruit_TFTShield18_API.h"
+#include "Adafruit_ST7735_API.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -144,12 +145,18 @@ int main(void)
     printf("TFT shield initialized successfully!\n\r");
   }
 
+  ST7735_Handle* tft = ST7735_create(&hspi2, DISP_CS_Pin, DISP_CS_GPIO_Port, DISP_DCX_SEL_Pin, DISP_DCX_SEL_GPIO_Port);
+
+  ST7735_init(tft, INITR_BLACKTAB);
+
   TFTShield18_setBacklight(seesaw, TFTSHIELD_BACKLIGHT_OFF);
 
   for (int32_t i=TFTSHIELD_BACKLIGHT_OFF; i<TFTSHIELD_BACKLIGHT_ON; i+=100) {
     TFTShield18_setBacklight(seesaw, i);
     HAL_Delay(1);
   }
+
+  ST7735_fillScreen(tft, ST77XX_CYAN);
 
   uint32_t lastButtonState = TFTSHIELD_BUTTON_ALL;
 
@@ -168,6 +175,8 @@ int main(void)
       if(!(buttons & TFTSHIELD_BUTTON_RIGHT)) printf("Button RIGHT\n\r");
       if(!(buttons & TFTSHIELD_BUTTON_IN)) printf("Button SELECT\n\r");
     }
+
+    // ST7735_fillScreen(tft, ST77XX_GREEN);
 
     lastButtonState = buttons;
     DWT_Delay_ms(100);
@@ -208,7 +217,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLM = 1;
   RCC_OscInitStruct.PLL.PLLN = 32;
   RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 5;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   RCC_OscInitStruct.PLL.PLLR = 2;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1_VCIRANGE_2;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1_VCORANGE_WIDE;
@@ -374,7 +383,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -417,14 +426,24 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Test_Pin_GPIO_Port, Test_Pin_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, Test_Pin_Pin|DISP_DCX_SEL_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : Test_Pin_Pin */
-  GPIO_InitStruct.Pin = Test_Pin_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(DISP_CS_GPIO_Port, DISP_CS_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pins : Test_Pin_Pin DISP_DCX_SEL_Pin */
+  GPIO_InitStruct.Pin = Test_Pin_Pin|DISP_DCX_SEL_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  HAL_GPIO_Init(Test_Pin_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : DISP_CS_Pin */
+  GPIO_InitStruct.Pin = DISP_CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  HAL_GPIO_Init(DISP_CS_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

@@ -23,24 +23,24 @@ extern "C" {
 // for compatibility with existing PROGMEM-reading AVR code.
 // Do our own checks and defines here for good measure...
 
-#ifndef pgm_read_byte
-#define pgm_read_byte(addr) (*(const unsigned char *)(addr))
-#endif
-#ifndef pgm_read_word
-#define pgm_read_word(addr) (*(const unsigned short *)(addr))
-#endif
-#ifndef pgm_read_dword
-#define pgm_read_dword(addr) (*(const unsigned long *)(addr))
-#endif
+// #ifndef pgm_read_byte
+// #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
+// #endif
+// #ifndef pgm_read_word
+// #define pgm_read_word(addr) (*(const unsigned short *)(addr))
+// #endif
+// #ifndef pgm_read_dword
+// #define pgm_read_dword(addr) (*(const unsigned long *)(addr))
+// #endif
 
 // Pointers are a peculiar case...typically 16-bit on AVR boards,
 // 32 bits elsewhere.  Try to accommodate both...
 
-#if !defined(__INT_MAX__) || (__INT_MAX__ > 0xFFFF)
-#define pgm_read_pointer(addr) ((void *)pgm_read_dword(addr))
-#else
-#define pgm_read_pointer(addr) ((void *)pgm_read_word(addr))
-#endif
+// #if !defined(__INT_MAX__) || (__INT_MAX__ > 0xFFFF)
+// #define pgm_read_pointer(addr) ((void *)pgm_read_dword(addr))
+// #else
+// #define pgm_read_pointer(addr) ((void *)pgm_read_word(addr))
+// #endif
 
 /// A generic graphics superclass that can handle all sorts of drawing. At a
 /// minimum you can subclass and provide drawPixel(). At a maximum you can do a

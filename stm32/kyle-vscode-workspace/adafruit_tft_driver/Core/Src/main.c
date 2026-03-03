@@ -54,6 +54,8 @@ DMA_HandleTypeDef handle_GPDMA1_Channel7;
 
 /* USER CODE BEGIN PV */
 
+volatile bool spiTxDone = false;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -145,7 +147,7 @@ int main(void)
     printf("TFT shield initialized successfully!\n\r");
   }
 
-  ST7735_Handle* tft = ST7735_create(&hspi2, DISP_CS_Pin, DISP_CS_GPIO_Port, DISP_DCX_SEL_Pin, DISP_DCX_SEL_GPIO_Port);
+  ST7735_Handle* tft = ST7735_create(&hspi2, DISP_CS_Pin, DISP_CS_GPIO_Port, DISP_DCX_SEL_Pin, DISP_DCX_SEL_GPIO_Port, &spiTxDone);
 
   ST7735_init(tft, INITR_BLACKTAB);
 
@@ -156,7 +158,9 @@ int main(void)
     HAL_Delay(1);
   }
 
-  ST7735_fillScreen(tft, ST77XX_CYAN);
+  HAL_Delay(1000);
+
+  ST7735_fillScreen(tft, ST77XX_BLACK);
 
   uint32_t lastButtonState = TFTSHIELD_BUTTON_ALL;
 

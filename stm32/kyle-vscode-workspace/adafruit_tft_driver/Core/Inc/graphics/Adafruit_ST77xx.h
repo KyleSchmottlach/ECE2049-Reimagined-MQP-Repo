@@ -37,7 +37,7 @@
 class Adafruit_ST77xx : public Adafruit_SPITFT {
 public:
   Adafruit_ST77xx(uint16_t w, uint16_t h, SPI_HandleTypeDef *spiHandle, int16_t cs, GPIO_TypeDef *cs_port,
-                  int16_t dc, GPIO_TypeDef *dc_port, int8_t RST = -1);
+                  int16_t dc, GPIO_TypeDef *dc_port, int8_t RST = -1, volatile bool *spiTxDone = nullptr);
 
   void setAddrWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
   void setRotation(uint8_t r);

@@ -22,6 +22,7 @@
 #include "stm32h5xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +42,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+
+extern volatile bool spiTxDone;
 
 /* USER CODE END PV */
 
@@ -301,5 +304,16 @@ void SPI2_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
+  if (hspi->Instance == SPI2) {
+    // Handle the completion of SPI transmission here
+    // For example, you can set a flag or call another function
+
+    spiTxDone = true;
+
+    // printf("SPI transmission completed!\n\r");
+  }
+}
 
 /* USER CODE END 1 */

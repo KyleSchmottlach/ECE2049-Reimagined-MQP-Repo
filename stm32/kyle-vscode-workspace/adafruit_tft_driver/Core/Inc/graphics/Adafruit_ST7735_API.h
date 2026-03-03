@@ -18,7 +18,7 @@ typedef struct ST7735_Handle ST7735_Handle;
 //---------------------------------------------------------------------------------
 // Adafruit_ST7735.cpp function declarations
 
-ST7735_Handle* ST7735_create(SPI_HandleTypeDef *spiHandle, int16_t cs, GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port);
+ST7735_Handle* ST7735_create(SPI_HandleTypeDef *spiHandle, int16_t cs, GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, volatile bool *spiTxDone);
 
 void ST7735_init(ST7735_Handle* handle, uint8_t options);
 void ST7735_setRotation(ST7735_Handle* handle, uint8_t m);

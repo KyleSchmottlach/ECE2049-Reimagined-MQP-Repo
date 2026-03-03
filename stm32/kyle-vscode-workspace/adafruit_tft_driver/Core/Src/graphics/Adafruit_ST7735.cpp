@@ -10,8 +10,8 @@
     @param  dc        Data/Command pin #
     @param  rst       Reset pin # (optional, pass -1 if unused)
 */
-Adafruit_ST7735::Adafruit_ST7735(SPI_HandleTypeDef *spiHandle, int16_t cs, GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, int8_t rst)
-    : Adafruit_ST77xx(ST7735_TFTWIDTH_128, ST7735_TFTHEIGHT_160, spiHandle, cs, cs_port, dc, dc_port, rst) {}
+Adafruit_ST7735::Adafruit_ST7735(SPI_HandleTypeDef *spiHandle, int16_t cs, GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, int8_t rst, volatile bool *spiTxDone)
+    : Adafruit_ST77xx(ST7735_TFTWIDTH_128, ST7735_TFTHEIGHT_160, spiHandle, cs, cs_port, dc, dc_port, rst, spiTxDone) {}
 
 // SCREEN INITIALIZATION ***************************************************
 
@@ -132,7 +132,9 @@ static constexpr uint8_t
 */
 /**************************************************************************/
 void Adafruit_ST7735::initR(uint8_t options) {
+  printf("Running common init...\n\r");
   commonInit(Rcmd1);
+  printf("Completed common init!\n\r");
   if (options == INITR_GREENTAB) {
     displayInit(Rcmd2green);
     _colstart = 2;

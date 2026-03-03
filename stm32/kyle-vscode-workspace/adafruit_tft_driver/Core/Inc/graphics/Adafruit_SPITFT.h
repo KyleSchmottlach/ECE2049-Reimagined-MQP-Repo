@@ -80,7 +80,7 @@ public:
   // width & height (rotation 0), SPIClass pointer, 2 signal pins (cs, dc)
   // and optional reset pin. cs is required but can be -1 if unused.
   Adafruit_SPITFT(uint16_t w, uint16_t h, SPI_HandleTypeDef *spiHandle, int16_t cs,
-                  GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, int8_t rst = -1);
+                  GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, int8_t rst = -1, volatile bool *spiTxDone = nullptr);
 
   // Parallel constructor: expects width & height (rotation 0), flag
   // indicating whether 16-bit (true) or 8-bit (false) interface, 3 signal
@@ -284,6 +284,7 @@ protected:
 // #endif
     struct {          //   Values specific to HARDWARE SPI:
       SPI_HandleTypeDef *_spi; ///< SPI handle pointer
+      volatile bool *_spiTxDone; ///< Pointer to flag indicating SPI transmission completion
 #if defined(SPI_HAS_TRANSACTION)
       SPISettings settings; ///< SPI transaction settings
 #else

@@ -812,7 +812,7 @@ void Adafruit_GFX::drawBitmap(int16_t x, int16_t y, const uint8_t bitmap[],
       if (i & 7)
         b <<= 1;
       else
-        b = pgm_read_byte(&bitmap[j * byteWidth + i / 8]);
+        b = bitmap[j * byteWidth + i / 8];
       if (b & 0x80)
         writePixel(x + i, y, color);
     }
@@ -847,7 +847,7 @@ void Adafruit_GFX::drawBitmap(int16_t x, int16_t y, const uint8_t bitmap[],
       if (i & 7)
         b <<= 1;
       else
-        b = pgm_read_byte(&bitmap[j * byteWidth + i / 8]);
+        b = bitmap[j * byteWidth + i / 8];
       writePixel(x + i, y, (b & 0x80) ? color : bg);
     }
   }
@@ -974,7 +974,7 @@ void Adafruit_GFX::drawGrayscaleBitmap(int16_t x, int16_t y,
   startWrite();
   for (int16_t j = 0; j < h; j++, y++) {
     for (int16_t i = 0; i < w; i++) {
-      writePixel(x + i, y, (uint8_t)pgm_read_byte(&bitmap[j * w + i]));
+      writePixel(x + i, y, (uint8_t)bitmap[j * w + i]);
     }
   }
   endWrite();
@@ -1030,9 +1030,9 @@ void Adafruit_GFX::drawGrayscaleBitmap(int16_t x, int16_t y,
       if (i & 7)
         b <<= 1;
       else
-        b = pgm_read_byte(&mask[j * bw + i / 8]);
+        b = mask[j * bw + i / 8];
       if (b & 0x80) {
-        writePixel(x + i, y, (uint8_t)pgm_read_byte(&bitmap[j * w + i]));
+        writePixel(x + i, y, (uint8_t)bitmap[j * w + i]);
       }
     }
   }
@@ -1089,7 +1089,7 @@ void Adafruit_GFX::drawRGBBitmap(int16_t x, int16_t y, const uint16_t bitmap[],
   startWrite();
   for (int16_t j = 0; j < h; j++, y++) {
     for (int16_t i = 0; i < w; i++) {
-      writePixel(x + i, y, pgm_read_word(&bitmap[j * w + i]));
+      writePixel(x + i, y, bitmap[j * w + i]);
     }
   }
   endWrite();
@@ -1141,9 +1141,9 @@ void Adafruit_GFX::drawRGBBitmap(int16_t x, int16_t y, const uint16_t bitmap[],
       if (i & 7)
         b <<= 1;
       else
-        b = pgm_read_byte(&mask[j * bw + i / 8]);
+        b = mask[j * bw + i / 8];
       if (b & 0x80) {
-        writePixel(x + i, y, pgm_read_word(&bitmap[j * w + i]));
+        writePixel(x + i, y, bitmap[j * w + i]);
       }
     }
   }
@@ -1234,7 +1234,7 @@ void Adafruit_GFX::drawChar(int16_t x, int16_t y, unsigned char c,
 
     startWrite();
     for (int8_t i = 0; i < 5; i++) { // Char bitmap = 5 columns
-      uint8_t line = pgm_read_byte(&font[c * 5 + i]);
+      uint8_t line = font[c * 5 + i];
       for (int8_t j = 0; j < 8; j++, line >>= 1) {
         if (line & 1) {
           if (size_x == 1 && size_y == 1)
@@ -1264,14 +1264,14 @@ void Adafruit_GFX::drawChar(int16_t x, int16_t y, unsigned char c,
     // newlines, returns, non-printable characters, etc.  Calling
     // drawChar() directly with 'bad' characters of font may cause mayhem!
 
-    c -= (uint8_t)pgm_read_byte(&gfxFont->first);
+    c -= (uint8_t)gfxFont->first;
     GFXglyph *glyph = pgm_read_glyph_ptr(gfxFont, c);
     uint8_t *bitmap = pgm_read_bitmap_ptr(gfxFont);
 
-    uint16_t bo = pgm_read_word(&glyph->bitmapOffset);
-    uint8_t w = pgm_read_byte(&glyph->width), h = pgm_read_byte(&glyph->height);
-    int8_t xo = pgm_read_byte(&glyph->xOffset),
-           yo = pgm_read_byte(&glyph->yOffset);
+    uint16_t bo = glyph->bitmapOffset;
+    uint8_t w = glyph->width, h = glyph->height;
+    int8_t xo = glyph->xOffset,
+           yo = glyph->yOffset;
     uint8_t xx, yy, bits = 0, bit = 0;
     int16_t xo16 = 0, yo16 = 0;
 
@@ -1302,7 +1302,7 @@ void Adafruit_GFX::drawChar(int16_t x, int16_t y, unsigned char c,
     for (yy = 0; yy < h; yy++) {
       for (xx = 0; xx < w; xx++) {
         if (!(bit++ & 7)) {
-          bits = pgm_read_byte(&bitmap[bo++]);
+          bits = bitmap[bo++];
         }
         if (bits & 0x80) {
           if (size_x == 1 && size_y == 1) {
@@ -1346,25 +1346,25 @@ size_t Adafruit_GFX::write(uint8_t c) {
     if (c == '\n') {
       cursor_x = 0;
       cursor_y +=
-          (int16_t)textsize_y * (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
+          (int16_t)textsize_y * (uint8_t)gfxFont->yAdvance;
     } else if (c != '\r') {
-      uint8_t first = pgm_read_byte(&gfxFont->first);
-      if ((c >= first) && (c <= (uint8_t)pgm_read_byte(&gfxFont->last))) {
+      uint8_t first = gfxFont->first;
+      if ((c >= first) && (c <= (uint8_t)gfxFont->last)) {
         GFXglyph *glyph = pgm_read_glyph_ptr(gfxFont, c - first);
-        uint8_t w = pgm_read_byte(&glyph->width),
-                h = pgm_read_byte(&glyph->height);
+        uint8_t w = glyph->width,
+                h = glyph->height;
         if ((w > 0) && (h > 0)) { // Is there an associated bitmap?
-          int16_t xo = (int8_t)pgm_read_byte(&glyph->xOffset); // sic
+          int16_t xo = (int8_t)glyph->xOffset; // sic
           if (wrap && ((cursor_x + textsize_x * (xo + w)) > _width)) {
             cursor_x = 0;
             cursor_y += (int16_t)textsize_y *
-                        (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
+                        (uint8_t)gfxFont->yAdvance;
           }
           drawChar(cursor_x, cursor_y, c, textcolor, textbgcolor, textsize_x,
                    textsize_y);
         }
         cursor_x +=
-            (uint8_t)pgm_read_byte(&glyph->xAdvance) * (int16_t)textsize_x;
+            (uint8_t)glyph->xAdvance * (int16_t)textsize_x;
       }
     }
   }
@@ -1462,20 +1462,20 @@ void Adafruit_GFX::charBounds(unsigned char c, int16_t *x, int16_t *y,
 
     if (c == '\n') { // Newline?
       *x = 0;        // Reset x to zero, advance y by one line
-      *y += textsize_y * (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
+      *y += textsize_y * (uint8_t)gfxFont->yAdvance;
     } else if (c != '\r') { // Not a carriage return; is normal char
-      uint8_t first = pgm_read_byte(&gfxFont->first),
-              last = pgm_read_byte(&gfxFont->last);
+      uint8_t first = gfxFont->first,
+              last = gfxFont->last;
       if ((c >= first) && (c <= last)) { // Char present in this font?
         GFXglyph *glyph = pgm_read_glyph_ptr(gfxFont, c - first);
-        uint8_t gw = pgm_read_byte(&glyph->width),
-                gh = pgm_read_byte(&glyph->height),
-                xa = pgm_read_byte(&glyph->xAdvance);
-        int8_t xo = pgm_read_byte(&glyph->xOffset),
-               yo = pgm_read_byte(&glyph->yOffset);
+        uint8_t gw = glyph->width,
+                gh = glyph->height,
+                xa = glyph->xAdvance;
+        int8_t xo = glyph->xOffset,
+               yo = glyph->yOffset;
         if (wrap && ((*x + (((int16_t)xo + gw) * textsize_x)) > _width)) {
           *x = 0; // Reset x to zero, advance y by one line
-          *y += textsize_y * (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
+          *y += textsize_y * (uint8_t)gfxFont->yAdvance;
         }
         int16_t tsx = (int16_t)textsize_x, tsy = (int16_t)textsize_y,
                 x1 = *x + xo * tsx, y1 = *y + yo * tsy, x2 = x1 + gw * tsx - 1,
@@ -1904,17 +1904,10 @@ void GFXcanvas1::drawPixel(int16_t x, int16_t y, uint16_t color) {
     }
 
     uint8_t *ptr = &buffer[(x / 8) + y * ((WIDTH + 7) / 8)];
-#ifdef __AVR__
-    if (color)
-      *ptr |= pgm_read_byte(&GFXsetBit[x & 7]);
-    else
-      *ptr &= pgm_read_byte(&GFXclrBit[x & 7]);
-#else
     if (color)
       *ptr |= 0x80 >> (x & 7);
     else
       *ptr &= ~(0x80 >> (x & 7));
-#endif
   }
 }
 
@@ -1965,11 +1958,7 @@ bool GFXcanvas1::getRawPixel(int16_t x, int16_t y) const {
   if (buffer) {
     uint8_t *ptr = &buffer[(x / 8) + y * ((WIDTH + 7) / 8)];
 
-#ifdef __AVR__
-    return ((*ptr) & pgm_read_byte(&GFXsetBit[x & 7])) != 0;
-#else
     return ((*ptr) & (0x80 >> (x & 7))) != 0;
-#endif
   }
   return 0;
 }
@@ -2114,21 +2103,13 @@ void GFXcanvas1::drawFastRawVLine(int16_t x, int16_t y, int16_t h,
   uint8_t *ptr = &buffer[(x / 8) + y * row_bytes];
 
   if (color > 0) {
-#ifdef __AVR__
-    uint8_t bit_mask = pgm_read_byte(&GFXsetBit[x & 7]);
-#else
     uint8_t bit_mask = (0x80 >> (x & 7));
-#endif
     for (int16_t i = 0; i < h; i++) {
       *ptr |= bit_mask;
       ptr += row_bytes;
     }
   } else {
-#ifdef __AVR__
-    uint8_t bit_mask = pgm_read_byte(&GFXclrBit[x & 7]);
-#else
     uint8_t bit_mask = ~(0x80 >> (x & 7));
-#endif
     for (int16_t i = 0; i < h; i++) {
       *ptr &= bit_mask;
       ptr += row_bytes;
@@ -2157,11 +2138,7 @@ void GFXcanvas1::drawFastRawHLine(int16_t x, int16_t y, int16_t w,
     // create bit mask for first byte
     uint8_t startByteBitMask = 0x00;
     for (int8_t i = (x & 7); ((i < 8) && (remainingWidthBits > 0)); i++) {
-#ifdef __AVR__
-      startByteBitMask |= pgm_read_byte(&GFXsetBit[i]);
-#else
       startByteBitMask |= (0x80 >> i);
-#endif
       remainingWidthBits--;
     }
     if (color > 0) {
@@ -2184,11 +2161,7 @@ void GFXcanvas1::drawFastRawHLine(int16_t x, int16_t y, int16_t w,
     if (lastByteBits > 0) {
       uint8_t lastByteBitMask = 0x00;
       for (size_t i = 0; i < lastByteBits; i++) {
-#ifdef __AVR__
-        lastByteBitMask |= pgm_read_byte(&GFXsetBit[i]);
-#else
         lastByteBitMask |= (0x80 >> i);
-#endif
       }
       ptr += remainingWholeBytes;
 

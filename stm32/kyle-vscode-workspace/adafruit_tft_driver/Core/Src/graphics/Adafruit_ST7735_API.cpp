@@ -10,8 +10,8 @@ struct ST7735_Handle {
 //--------------------------------------------------------------------------------------------
 // Adafruit_ST7735.cpp function definitions
 
-ST7735_Handle* ST7735_create(SPI_HandleTypeDef *spiHandle, int16_t cs, GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port) {
-    static ST7735_Handle st7735 = ST7735_Handle{Adafruit_ST7735(spiHandle, cs, cs_port, dc, dc_port, -1)};
+ST7735_Handle* ST7735_create(SPI_HandleTypeDef *spiHandle, int16_t cs, GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, volatile bool *spiTxDone) {
+    static ST7735_Handle st7735 = ST7735_Handle{Adafruit_ST7735(spiHandle, cs, cs_port, dc, dc_port, -1, spiTxDone)};
     return &st7735;
 }
 

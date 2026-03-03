@@ -47,8 +47,8 @@
 */
 /**************************************************************************/
 Adafruit_ST77xx::Adafruit_ST77xx(uint16_t w, uint16_t h, SPI_HandleTypeDef *spiHandle,
-                                 int16_t cs, GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, int8_t rst)
-    : Adafruit_SPITFT(w, h, spiHandle, cs, cs_port, dc, dc_port, rst) {}
+                                 int16_t cs, GPIO_TypeDef *cs_port, int16_t dc, GPIO_TypeDef *dc_port, int8_t rst, volatile bool *spiTxDone)
+    : Adafruit_SPITFT(w, h, spiHandle, cs, cs_port, dc, dc_port, rst, spiTxDone) {}
 
 /**************************************************************************/
 /*!
@@ -64,17 +64,17 @@ void Adafruit_ST77xx::displayInit(const uint8_t *addr) {
   uint8_t numArgs;
   uint16_t ms;
 
-  numCommands = pgm_read_byte(addr++); // Number of commands to follow
+  numCommands = *(addr++); // Number of commands to follow
   while (numCommands--) {              // For each command...
-    cmd = pgm_read_byte(addr++);       // Read command
-    numArgs = pgm_read_byte(addr++);   // Number of args to follow
+    cmd = *(addr++);       // Read command
+    numArgs = *(addr++);   // Number of args to follow
     ms = numArgs & ST_CMD_DELAY;       // If hibit set, delay follows args
     numArgs &= ~ST_CMD_DELAY;          // Mask out delay bit
     sendCommand(cmd, addr, numArgs);
     addr += numArgs;
 
     if (ms) {
-      ms = pgm_read_byte(addr++); // Read post-command delay time (ms)
+      ms = *(addr++); // Read post-command delay time (ms)
       if (ms == 255)
         ms = 500; // If 255, delay for 500 ms
       HAL_Delay(ms);

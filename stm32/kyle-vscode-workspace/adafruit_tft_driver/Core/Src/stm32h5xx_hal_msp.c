@@ -282,7 +282,7 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
     handle_GPDMA1_Channel7.Init.DestInc = DMA_DINC_FIXED;
     handle_GPDMA1_Channel7.Init.SrcDataWidth = DMA_SRC_DATAWIDTH_BYTE;
     handle_GPDMA1_Channel7.Init.DestDataWidth = DMA_DEST_DATAWIDTH_BYTE;
-    handle_GPDMA1_Channel7.Init.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
+    handle_GPDMA1_Channel7.Init.Priority = DMA_LOW_PRIORITY_HIGH_WEIGHT;
     handle_GPDMA1_Channel7.Init.SrcBurstLength = 1;
     handle_GPDMA1_Channel7.Init.DestBurstLength = 1;
     handle_GPDMA1_Channel7.Init.TransferAllocatedPort = DMA_SRC_ALLOCATED_PORT0|DMA_DEST_ALLOCATED_PORT0;

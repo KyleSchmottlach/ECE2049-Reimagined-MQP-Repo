@@ -25,6 +25,7 @@
 #include "Adafruit_ST77xx.h"
 #include <limits.h>
 #include <stdint.h>
+#include "dwt_module.h"
 // #if !defined(ARDUINO_STM32_FEATHER) && !defined(ARDUINO_UNOR4_WIFI)
 // #if !defined(ARDUINO_UNOR4_MINIMA)
 // #include "pins_arduino.h"
@@ -77,7 +78,7 @@ void Adafruit_ST77xx::displayInit(const uint8_t *addr) {
       ms = *(addr++); // Read post-command delay time (ms)
       if (ms == 255)
         ms = 500; // If 255, delay for 500 ms
-      HAL_Delay(ms);
+      DWT_Delay_ms(ms);
     }
   }
 }

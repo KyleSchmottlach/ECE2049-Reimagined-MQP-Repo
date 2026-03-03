@@ -151,6 +151,10 @@ int main(void)
 
   ST7735_init(tft, INITR_BLACKTAB);
 
+  DWT_Delay_ms(100);
+
+  ST7735_fillScreen(tft, ST77XX_GREEN);
+
   TFTShield18_setBacklight(seesaw, TFTSHIELD_BACKLIGHT_OFF);
 
   for (int32_t i=TFTSHIELD_BACKLIGHT_OFF; i<TFTSHIELD_BACKLIGHT_ON; i+=100) {
@@ -159,8 +163,6 @@ int main(void)
   }
 
   HAL_Delay(1000);
-
-  ST7735_fillScreen(tft, ST77XX_BLACK);
 
   uint32_t lastButtonState = TFTSHIELD_BUTTON_ALL;
 

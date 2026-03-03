@@ -39,6 +39,14 @@
 #define TFT_SOFT_SPI 1 ///< Display interface = software SPI
 #define TFT_PARALLEL 2 ///< Display interface = 8- or 16-bit parallel
 
+inline void flip_endianness(uint8_t *data, size_t length) {
+  for (size_t i = 0; i < length / 2; i++) {
+    uint8_t temp = data[i];
+    data[i] = data[length - 1 - i];
+    data[length - 1 - i] = temp;
+  }
+}
+
 // CONSTRUCTORS ------------------------------------------------------------
 
 /*!
@@ -299,14 +307,21 @@ void Adafruit_SPITFT::writeColor(uint16_t color, uint32_t len) {
 
   // All other cases (non-DMA hard SPI, bitbang SPI, parallel)...
 
-  if (connection == TFT_HARD_SPI) {
-    while (len--) {
-      *hwspi._spiTxDone = false; // Clear flag before starting SPI transmission
-      HAL_SPI_Transmit_DMA(hwspi._spi, data, 2);
+  #define COLOR_FRAME_BUF_SIZE 32 // Write 32 pixels at a time
 
-      while (!(*hwspi._spiTxDone)); // Wait for the SPI transmission to complete
-      while(!__HAL_SPI_GET_FLAG(hwspi._spi, SPI_FLAG_TXC)); // Wait for the SPI peripheral to free up after transmission
-    }
+  static uint16_t tempColors[COLOR_FRAME_BUF_SIZE];
+
+  // Set the main buffer length based on whether more pixels than the specified maximum will be drawn
+  uint16_t bufLength = (len < COLOR_FRAME_BUF_SIZE) ? len : COLOR_FRAME_BUF_SIZE, xferLength;
+  
+  for(uint8_t i = 0; i < bufLength; i++) {
+    tempColors[i] = data[1] << 8 | data[0]; // Swap byte order so that data will be sent in big-endian order to display
+  }
+
+  while (len > 0) {
+    xferLength = (len < COLOR_FRAME_BUF_SIZE) ? len : COLOR_FRAME_BUF_SIZE;
+    spiWriteData((uint8_t *)tempColors, xferLength * 2);
+    len -= xferLength;
   }
 }
 
@@ -1161,12 +1176,16 @@ void Adafruit_SPITFT::writeCommand(uint8_t cmd) {
     @param  w  16-bit value to write.
 */
 void Adafruit_SPITFT::SPI_WRITE16(uint16_t w) {
-  *hwspi._spiTxDone = false; // Clear flag before starting SPI transmission
-  // MSB, LSB because TFTs are generally big-endian
-  HAL_SPI_Transmit_DMA(hwspi._spi, (uint8_t *) &w, 2);
+  union {
+    uint16_t val;
+    uint8_t bytes[2];
+  } data;
 
-  while (!(*hwspi._spiTxDone)); // Wait for the SPI transmission to complete
-  while(!__HAL_SPI_GET_FLAG(hwspi._spi, SPI_FLAG_TXC)); // Wait for the SPI peripheral to free up after transmission
+  data.val = w;
+
+  flip_endianness(data.bytes, 2);
+
+  spiWriteData(data.bytes, 2);
 }
 
 /*!
@@ -1180,9 +1199,14 @@ void Adafruit_SPITFT::SPI_WRITE16(uint16_t w) {
     @param  l  32-bit value to write.
 */
 void Adafruit_SPITFT::SPI_WRITE32(uint32_t l) {
-  *hwspi._spiTxDone = false; // Clear flag before starting SPI transmission
-  HAL_SPI_Transmit_DMA(hwspi._spi, (uint8_t *) &l, 4);
+  union {
+    uint32_t val;
+    uint8_t bytes[4];
+  } data;
 
-  while (!(*hwspi._spiTxDone)); // Wait for the SPI transmission to complete
-  while(!__HAL_SPI_GET_FLAG(hwspi._spi, SPI_FLAG_TXC)); // Wait for the SPI peripheral to free up after transmission
+  data.val = l;
+
+  flip_endianness(data.bytes, 4);
+
+  spiWriteData(data.bytes, 4);
 }

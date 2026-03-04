@@ -24,6 +24,9 @@
 #include "dwt_module.h"
 #include "Adafruit_TFTShield18_API.h"
 #include "Adafruit_ST7735_API.h"
+
+#include "Fonts/FreeSerifBoldItalic12pt7b.h"
+#include "Fonts/FreeMono9pt7b.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -147,11 +150,17 @@ int main(void)
     printf("TFT shield initialized successfully!\n\r");
   }
 
+  TFTShield18_tftReset(seesaw, true);
+
+  DWT_Delay_ms(100);
+
   ST7735_Handle* tft = ST7735_create(&hspi2, DISP_CS_Pin, DISP_CS_GPIO_Port, DISP_DCX_SEL_Pin, DISP_DCX_SEL_GPIO_Port, &spiTxDone);
 
   ST7735_init(tft, INITR_BLACKTAB);
 
   DWT_Delay_ms(100);
+
+  ST7735_setRotation(tft, 1);
 
   ST7735_fillScreen(tft, ST77XX_GREEN);
 
@@ -164,7 +173,27 @@ int main(void)
 
   HAL_Delay(1000);
 
+  ST7735_fillScreen(tft, ST77XX_BLUE);
+  DWT_Delay_ms(100);
+  ST7735_fillScreen(tft, ST77XX_CYAN);
+  DWT_Delay_ms(100);
+  ST7735_fillScreen(tft, ST77XX_RED);
+  DWT_Delay_ms(100);
+  ST7735_fillScreen(tft, ST77XX_YELLOW);
+  DWT_Delay_ms(100);
+  ST7735_fillScreen(tft, ST77XX_WHITE);
+  DWT_Delay_ms(100);
+
+  ST7735_fillCircle(tft, ST7735_width(tft)/2, ST7735_height(tft)/2, 30, ST77XX_MAGENTA);
+  ST7735_drawCircle(tft, ST7735_width(tft)/2, ST7735_height(tft)/2, 30, ST77XX_BLACK);
+  ST7735_setTextColor(tft, ST77XX_BLACK);
+  ST7735_setTextSize(tft, 1, 1);
+  ST7735_setCursor(tft, 10, 10);
+  ST7735_setFont(tft, &FreeMono9pt7b);
+  ST7735_print(tft, "Hello, World!");
+
   uint32_t lastButtonState = TFTSHIELD_BUTTON_ALL;
+  bool inverted = false;
 
   while (1)
   {
@@ -172,7 +201,11 @@ int main(void)
     uint32_t buttons = TFTShield18_readButtons(seesaw);
 
     if(lastButtonState != buttons) {
-      if(!(buttons & TFTSHIELD_BUTTON_1)) printf("Button 1\n\r");
+      if(!(buttons & TFTSHIELD_BUTTON_1)) {
+        printf("Button 1\n\r");
+        inverted = !inverted;
+        ST7735_invertDisplay(tft, inverted);
+      }
       if(!(buttons & TFTSHIELD_BUTTON_2)) printf("Button 2\n\r");
       if(!(buttons & TFTSHIELD_BUTTON_3)) printf("Button 3\n\r");
       if(!(buttons & TFTSHIELD_BUTTON_DOWN)) printf("Button DOWN\n\r");
@@ -223,7 +256,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLM = 1;
   RCC_OscInitStruct.PLL.PLLN = 32;
   RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
+  RCC_OscInitStruct.PLL.PLLQ = 9;
   RCC_OscInitStruct.PLL.PLLR = 2;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1_VCIRANGE_2;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1_VCORANGE_WIDE;
@@ -389,7 +422,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_BYPASS;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;

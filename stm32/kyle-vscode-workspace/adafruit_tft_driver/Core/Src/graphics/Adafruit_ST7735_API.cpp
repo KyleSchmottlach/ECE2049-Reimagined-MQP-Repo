@@ -174,3 +174,11 @@ int16_t ST7735_getCursorX(ST7735_Handle *handle){
 int16_t ST7735_getCursorY(ST7735_Handle *handle){
     return handle->instance.getCursorY();
 }
+
+void ST7735_print(ST7735_Handle *handle, const char *str) {
+    handle->instance.print(str);
+}
+
+void ST7735_println(ST7735_Handle *handle, const char *str) {
+    handle->instance.println(str);
+}

@@ -1,5 +1,5 @@
 #pragma once
-#include <Adafruit_GFX.h>
+#include <gfxfont.h>
 
 /**
 ** The FontStruction “Tiny3x3a”

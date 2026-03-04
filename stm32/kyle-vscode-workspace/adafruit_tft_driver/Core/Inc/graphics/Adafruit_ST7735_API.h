@@ -77,6 +77,8 @@ int16_t ST7735_height(ST7735_Handle *handle);
 uint8_t ST7735_getRotation(ST7735_Handle *handle);
 int16_t ST7735_getCursorX(ST7735_Handle *handle);
 int16_t ST7735_getCursorY(ST7735_Handle *handle);
+void ST7735_print(ST7735_Handle *handle, const char *str);
+void ST7735_println(ST7735_Handle *handle, const char *str);
 
 #ifdef __cplusplus
 }

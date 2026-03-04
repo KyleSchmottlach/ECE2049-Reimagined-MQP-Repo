@@ -194,6 +194,18 @@ int main(void)
   ST7735_setFont(tft, &FreeSerifBoldItalic12pt7b);
   ST7735_print(tft, "Hello, World!");
 
+  DWT_Delay_ms(1000);
+
+  ST7735_fillScreen(tft, ST77XX_BLACK);
+
+  for(int i = 0; i <= ST7735_height(tft); i += 4) {
+    ST7735_drawLine(tft, 0, i, ST7735_width(tft), 0, ST7735_YELLOW);
+  }
+
+  for(int i = 0; i <= ST7735_width(tft); i += 5) {
+    ST7735_drawLine(tft, i, ST7735_height(tft), ST7735_width(tft), 0, ST77XX_YELLOW);
+  }
+
   uint32_t lastButtonState = TFTSHIELD_BUTTON_ALL;
   bool inverted = false;
 

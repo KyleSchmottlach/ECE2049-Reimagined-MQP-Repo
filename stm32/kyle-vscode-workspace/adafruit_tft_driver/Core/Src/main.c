@@ -184,12 +184,14 @@ int main(void)
   ST7735_fillScreen(tft, ST77XX_WHITE);
   DWT_Delay_ms(100);
 
-  ST7735_fillCircle(tft, ST7735_width(tft)/2, ST7735_height(tft)/2, 30, ST77XX_MAGENTA);
-  ST7735_drawCircle(tft, ST7735_width(tft)/2, ST7735_height(tft)/2, 30, ST77XX_BLACK);
+  ST7735_fillCircle(tft, ST7735_width(tft)/2, ST7735_height(tft)/2, 35, ST77XX_MAGENTA);
+  ST7735_drawCircle(tft, ST7735_width(tft)/2, ST7735_height(tft)/2, 35, ST77XX_BLACK);
+  ST7735_fillRoundRect(tft, (ST7735_width(tft)/2) - 20, (ST7735_height(tft)/2) - 20, 40, 40, 4, ST77XX_CYAN);
+
   ST7735_setTextColor(tft, ST77XX_BLACK);
   ST7735_setTextSize(tft, 1, 1);
   ST7735_setCursor(tft, 10, 10);
-  ST7735_setFont(tft, &FreeMono9pt7b);
+  ST7735_setFont(tft, &FreeSerifBoldItalic12pt7b);
   ST7735_print(tft, "Hello, World!");
 
   uint32_t lastButtonState = TFTSHIELD_BUTTON_ALL;
@@ -254,9 +256,9 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLL1_SOURCE_CSI;
   RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 32;
+  RCC_OscInitStruct.PLL.PLLN = 37;
   RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 9;
+  RCC_OscInitStruct.PLL.PLLQ = 5;
   RCC_OscInitStruct.PLL.PLLR = 2;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1_VCIRANGE_2;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1_VCORANGE_WIDE;
@@ -422,7 +424,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_BYPASS;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;

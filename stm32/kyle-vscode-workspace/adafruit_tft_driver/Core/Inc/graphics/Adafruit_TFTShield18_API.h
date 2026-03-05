@@ -11,12 +11,50 @@ extern "C" {
 
 typedef struct TFTShield18_Handle TFTShield18_Handle;
 
+/**
+ * @brief Function to create an instance of the seesaw class for the TFT shield. Must be called before any other functions in this API
+ * 
+ * @param i2c_handle Pointer to the STM32 HAL I2C handle to use for communication with the TFT seesaw device
+ */
 void TFTShield18_create(I2C_HandleTypeDef *i2c_handle);
 
-bool TFTShield18_begin(uint8_t addr);
+/**
+ * @brief Function to initialize the seesaw device on the TFT shield. Must be called before using any other functions in this API. 
+ *        Uses the default I2C address of 0x3E for the TFT seesaw device
+ * 
+ * @return true if the initialization was successful
+ * @return false if the initialization failed
+ */
+bool TFTShield18_begin();
+
+/**
+ * @brief Sets the backlight to a value between 0(0x0000) (off) and 65535(0xFFFF) (full brightness)
+ * 
+ * @param value Value to set the backlight to (between 0 and 65535)
+ */
 void TFTShield18_setBacklight(uint16_t value);
+
+/**
+ * @brief Sets the frequency of the backlight PWM
+ * 
+ * @param freq Frequency to set the backlight PWM to
+ */
 void TFTShield18_setBacklightFreq(uint16_t freq);
+
+/**
+ * @brief Perform a SW reset of the display and seesaw devices. Required to be called after initialization to reset the display 
+ *        from an unknown state. Should be called whenever a reset of the display is needed by setting rst to true and then back to false after a delay
+ * 
+ * @param rst Boolean value to trigger the reset. Set to true to initiate the reset and false to complete it.
+ */
 void TFTShield18_tftReset(bool rst);
+
+/**
+ * @brief Function to read the state of the on board shield buttons from the seesaw chip over I2C. Returned bitmask
+ *        has bits set corresponding to the TFTSHIELD_BUTTON macros defined in Adafruit_TFTShield18_Macros.h
+ * 
+ * @return uint32_t Bitmask representing the state of the buttons
+ */
 uint32_t TFTShield18_readButtons();
 
 #ifdef __cplusplus

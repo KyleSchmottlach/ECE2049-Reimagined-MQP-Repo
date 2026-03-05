@@ -23,7 +23,6 @@
 
 #include "stdlib.h"
 #include "Print.h"
-#include "Math_Helpers.h"
 #include "stm32h5xx_hal.h"
 #include <cstddef>
 
@@ -234,6 +233,13 @@ union keyState {
   } bit;                ///< bitfield format
   uint8_t reg;          ///< register format
 };
+
+inline int32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_min, uint32_t out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+inline uint32_t min(uint32_t a, uint32_t b) {
+  return (a < b) ? a : b;
+}
 
 /**************************************************************************/
 /*!

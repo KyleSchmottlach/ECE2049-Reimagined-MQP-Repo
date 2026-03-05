@@ -59,6 +59,8 @@ DMA_HandleTypeDef handle_GPDMA1_Channel7;
 
 volatile bool spiTxDone = false;
 
+extern uint8_t test_bits[];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -143,9 +145,10 @@ int main(void)
   if(!DWT_CheckInitialized()) printf("DWT failed to initialize!\n\r");
 
   TFTShield18_create(&hi2c1);
-  if (!TFTShield18_begin(TFTSHIELD_ADDR))
+  if (!TFTShield18_begin())
   {
     printf("Failed to initialize TFT shield!\n\r");
+    return 1;
   } else {
     printf("TFT shield initialized successfully!\n\r");
   }
@@ -205,6 +208,12 @@ int main(void)
   for(int i = 0; i <= Display_width(); i += 5) {
     Display_drawLine(i, Display_height(), Display_width(), 0, ST77XX_YELLOW);
   }
+
+  DWT_delayMs(2000);
+
+  Display_fillScreen(ST77XX_WHITE);
+
+  Display_drawXBitmapBg(0, 0, test_bits, 160, 128, ST77XX_BLACK, ST77XX_YELLOW);
 
   uint32_t lastButtonState = TFTSHIELD_BUTTON_ALL;
   bool inverted = false;

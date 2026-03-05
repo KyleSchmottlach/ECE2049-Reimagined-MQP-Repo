@@ -17,8 +17,8 @@ void TFTShield18_create(I2C_HandleTypeDef *i2c_handle) {
     seesaw_handle = &seesaw;
 }
 
-bool TFTShield18_begin(uint8_t addr) {
-    return seesaw_handle->instance.begin(addr);
+bool TFTShield18_begin() {
+    return seesaw_handle->instance.begin(TFTSHIELD_ADDR);
 }
 
 void TFTShield18_setBacklight(uint16_t value) {

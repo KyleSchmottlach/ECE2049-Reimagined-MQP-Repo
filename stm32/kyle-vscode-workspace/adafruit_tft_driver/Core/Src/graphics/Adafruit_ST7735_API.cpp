@@ -126,6 +126,9 @@ void Display_drawBitmapBg(int16_t x, int16_t y, uint8_t *bitmap, int16_t w, int1
 void Display_drawXBitmap(int16_t x, int16_t y, uint8_t *bitmap, int16_t w, int16_t h, uint16_t color){
     st7735_handle->instance.drawXBitmap(x, y, bitmap, w, h, color);
 }
+void Display_drawXBitmapBg(int16_t x, int16_t y, uint8_t *bitmap, int16_t w, int16_t h, uint16_t color, uint16_t bg){
+    st7735_handle->instance.drawXBitmap(x, y, bitmap, w, h, color, bg);
+}
 void Display_drawGrayscaleBitmap(int16_t x, int16_t y, uint8_t *bitmap, int16_t w, int16_t h){
     st7735_handle->instance.drawGrayscaleBitmap(x, y, bitmap, w, h);
 }

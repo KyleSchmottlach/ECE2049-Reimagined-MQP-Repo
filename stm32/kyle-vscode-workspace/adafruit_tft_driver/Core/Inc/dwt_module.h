@@ -20,13 +20,13 @@ extern "C" {
 bool DWT_Init(void);
 bool DWT_CheckInitialized(void);
 
-inline void DWT_Delay_us(volatile uint32_t us) {
+inline void DWT_delayUs(volatile uint32_t us) {
     uint32_t startTick = DWT->CYCCNT;
     uint32_t delayTicks = us * (HAL_RCC_GetHCLKFreq() / 1000000);
     while ((uint32_t)(DWT->CYCCNT - startTick) < delayTicks);
 }
 
-inline void DWT_Delay_ms(volatile uint32_t ms) {
+inline void DWT_delayMs(volatile uint32_t ms) {
     uint32_t startTick = DWT->CYCCNT;
     uint32_t delayTicks = ms * (HAL_RCC_GetHCLKFreq() / 1000);
     while ((uint32_t)(DWT->CYCCNT - startTick) < delayTicks);

@@ -11,13 +11,13 @@ extern "C" {
 
 typedef struct TFTShield18_Handle TFTShield18_Handle;
 
-TFTShield18_Handle* TFTShield18_create(I2C_HandleTypeDef *i2c_handle);
+void TFTShield18_create(I2C_HandleTypeDef *i2c_handle);
 
-bool TFTShield18_begin(TFTShield18_Handle* handle, uint8_t addr);
-void TFTShield18_setBacklight(TFTShield18_Handle* handle, uint16_t value);
-void TFTShield18_setBacklightFreq(TFTShield18_Handle* handle, uint16_t freq);
-void TFTShield18_tftReset(TFTShield18_Handle* handle, bool rst);
-uint32_t TFTShield18_readButtons(TFTShield18_Handle* handle);
+bool TFTShield18_begin(uint8_t addr);
+void TFTShield18_setBacklight(uint16_t value);
+void TFTShield18_setBacklightFreq(uint16_t freq);
+void TFTShield18_tftReset(bool rst);
+uint32_t TFTShield18_readButtons();
 
 #ifdef __cplusplus
 }

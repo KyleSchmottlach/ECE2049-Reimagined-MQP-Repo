@@ -72,7 +72,7 @@ bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
       found = true;
       break;
     }
-    DWT_Delay_ms(10);
+    DWT_delayMs(10);
   }
 
   if (!found) {
@@ -87,7 +87,7 @@ bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
         found = true;
         break;
       }
-      DWT_Delay_ms(10);
+      DWT_delayMs(10);
     }
   }
 
@@ -108,7 +108,7 @@ bool Adafruit_seesaw::begin(uint8_t addr, bool reset) {
       _hardwaretype = c;
     }
 
-    DWT_Delay_ms(10);
+    DWT_delayMs(10);
   }
 
   return found;
@@ -324,7 +324,7 @@ uint16_t Adafruit_seesaw::analogRead(uint8_t pin) {
 
   this->read(SEESAW_ADC_BASE, SEESAW_ADC_CHANNEL_OFFSET + p, buf, 2, 500);
   uint16_t ret = ((uint16_t)buf[0] << 8) | buf[1];
-  DWT_Delay_ms(1);
+  DWT_delayMs(1);
   return ret;
 }
 
@@ -659,7 +659,7 @@ uint8_t Adafruit_seesaw::getI2CaddrEEPROMloc() {
  ****************************************************************************************/
 void Adafruit_seesaw::setI2CAddr(uint8_t addr) {
   this->EEPROMWrite8(getI2CaddrEEPROMloc(), addr);
-  DWT_Delay_ms(250);
+  DWT_delayMs(250);
   this->begin(addr); // restart w/ the new addr
 }
 
@@ -929,7 +929,7 @@ bool Adafruit_seesaw::read(uint8_t regHigh, uint8_t regLow, uint8_t *buf,
     while(HAL_I2C_GetState(_i2cbus) == HAL_I2C_STATE_BUSY_TX);
 
     // TODO: tune this
-    DWT_Delay_us(delay);
+    DWT_delayUs(delay);
 
 #ifdef SEESAW_I2C_DEBUG
     Serial.print("Reading ");
@@ -1004,7 +1004,7 @@ bool Adafruit_seesaw::write(uint8_t regHigh, uint8_t regLow,
 size_t Adafruit_seesaw::write(uint8_t character) {
   // TODO: add support for multiple sercoms
   this->write8(SEESAW_SERCOM0_BASE, SEESAW_SERCOM_DATA, character);
-  DWT_Delay_ms(1); // TODO: this can be optimized... it's only needed for longer writes
+  DWT_delayMs(1); // TODO: this can be optimized... it's only needed for longer writes
   return 1;
 }
 

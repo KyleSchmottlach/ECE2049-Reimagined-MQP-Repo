@@ -10,27 +10,27 @@ struct TFTShield18_Handle {
     Adafruit_TFTShield18 instance;
 };
 
-static TFTShield18_Handle seesaw;
+TFTShield18_Handle *seesaw_handle;
 
-TFTShield18_Handle* TFTShield18_create(I2C_HandleTypeDef *i2c_handle) {
-    seesaw = TFTShield18_Handle{Adafruit_TFTShield18(i2c_handle)};
-    return &seesaw;
-}
-
-bool TFTShield18_begin(TFTShield18_Handle* handle, uint8_t addr) {
-    return handle->instance.begin(addr);
+void TFTShield18_create(I2C_HandleTypeDef *i2c_handle) {
+    static TFTShield18_Handle seesaw = TFTShield18_Handle{Adafruit_TFTShield18(i2c_handle)};
+    seesaw_handle = &seesaw;
 }
 
-void TFTShield18_setBacklight(TFTShield18_Handle* handle, uint16_t value) {
-    handle->instance.setBacklight(value);
+bool TFTShield18_begin(uint8_t addr) {
+    return seesaw_handle->instance.begin(addr);
 }
 
-void TFTShield18_setBacklightFreq(TFTShield18_Handle* handle, uint16_t freq) {
-    handle->instance.setBacklightFreq(freq);
+void TFTShield18_setBacklight(uint16_t value) {
+    seesaw_handle->instance.setBacklight(value);
 }
-void TFTShield18_tftReset(TFTShield18_Handle* handle, bool rst) {
-    handle->instance.tftReset(rst);
+
+void TFTShield18_setBacklightFreq(uint16_t freq) {
+    seesaw_handle->instance.setBacklightFreq(freq);
 }
-uint32_t TFTShield18_readButtons(TFTShield18_Handle* handle) {
-    return handle->instance.readButtons();
+void TFTShield18_tftReset(bool rst) {
+    seesaw_handle->instance.tftReset(rst);
+}
+uint32_t TFTShield18_readButtons() {
+    return seesaw_handle->instance.readButtons();
 }

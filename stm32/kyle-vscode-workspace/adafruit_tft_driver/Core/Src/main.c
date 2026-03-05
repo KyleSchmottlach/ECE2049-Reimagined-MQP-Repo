@@ -142,68 +142,68 @@ int main(void)
 
   if(!DWT_CheckInitialized()) printf("DWT failed to initialize!\n\r");
 
-  TFTShield18_Handle* seesaw = TFTShield18_create(&hi2c1);
-  if (!TFTShield18_begin(seesaw, TFTSHIELD_ADDR))
+  TFTShield18_create(&hi2c1);
+  if (!TFTShield18_begin(TFTSHIELD_ADDR))
   {
     printf("Failed to initialize TFT shield!\n\r");
   } else {
     printf("TFT shield initialized successfully!\n\r");
   }
 
-  TFTShield18_tftReset(seesaw, true);
+  TFTShield18_tftReset(true);
 
-  DWT_Delay_ms(100);
+  DWT_delayMs(100);
 
-  ST7735_Handle* tft = ST7735_create(&hspi2, DISP_CS_Pin, DISP_CS_GPIO_Port, DISP_DCX_SEL_Pin, DISP_DCX_SEL_GPIO_Port, &spiTxDone);
+  Display_create(&hspi2, DISP_CS_Pin, DISP_CS_GPIO_Port, DISP_DCX_SEL_Pin, DISP_DCX_SEL_GPIO_Port, &spiTxDone);
 
-  ST7735_init(tft, INITR_BLACKTAB);
+  Display_init(INITR_BLACKTAB);
 
-  DWT_Delay_ms(100);
+  DWT_delayMs(100);
 
-  ST7735_setRotation(tft, 1);
+  Display_setRotation(1);
 
-  ST7735_fillScreen(tft, ST77XX_GREEN);
+  Display_fillScreen(ST77XX_GREEN);
 
-  TFTShield18_setBacklight(seesaw, TFTSHIELD_BACKLIGHT_OFF);
+  TFTShield18_setBacklight(TFTSHIELD_BACKLIGHT_OFF);
 
   for (int32_t i=TFTSHIELD_BACKLIGHT_OFF; i<TFTSHIELD_BACKLIGHT_ON; i+=100) {
-    TFTShield18_setBacklight(seesaw, i);
+    TFTShield18_setBacklight(i);
     HAL_Delay(1);
   }
 
   HAL_Delay(1000);
 
-  ST7735_fillScreen(tft, ST77XX_BLUE);
-  DWT_Delay_ms(100);
-  ST7735_fillScreen(tft, ST77XX_CYAN);
-  DWT_Delay_ms(100);
-  ST7735_fillScreen(tft, ST77XX_RED);
-  DWT_Delay_ms(100);
-  ST7735_fillScreen(tft, ST77XX_YELLOW);
-  DWT_Delay_ms(100);
-  ST7735_fillScreen(tft, ST77XX_WHITE);
-  DWT_Delay_ms(100);
+  Display_fillScreen(ST77XX_BLUE);
+  DWT_delayMs(100);
+  Display_fillScreen(ST77XX_CYAN);
+  DWT_delayMs(100);
+  Display_fillScreen(ST77XX_RED);
+  DWT_delayMs(100);
+  Display_fillScreen(ST77XX_YELLOW);
+  DWT_delayMs(100);
+  Display_fillScreen(ST77XX_WHITE);
+  DWT_delayMs(100);
 
-  ST7735_fillCircle(tft, ST7735_width(tft)/2, ST7735_height(tft)/2, 35, ST77XX_MAGENTA);
-  ST7735_drawCircle(tft, ST7735_width(tft)/2, ST7735_height(tft)/2, 35, ST77XX_BLACK);
-  ST7735_fillRoundRect(tft, (ST7735_width(tft)/2) - 20, (ST7735_height(tft)/2) - 20, 40, 40, 4, ST77XX_CYAN);
+  Display_fillCircle(Display_width()/2, Display_height()/2, 35, ST77XX_MAGENTA);
+  Display_drawCircle(Display_width()/2, Display_height()/2, 35, ST77XX_BLACK);
+  Display_fillRoundRect((Display_width()/2) - 20, (Display_height()/2) - 20, 40, 40, 4, ST77XX_CYAN);
 
-  ST7735_setTextColor(tft, ST77XX_BLACK);
-  ST7735_setTextSize(tft, 1, 1);
-  ST7735_setCursor(tft, 10, 10);
-  ST7735_setFont(tft, &FreeSerifBoldItalic12pt7b);
-  ST7735_print(tft, "Hello, World!");
+  Display_setTextColor(ST77XX_BLACK);
+  Display_setTextSize(1, 1);
+  Display_setCursor(10, 10);
+  Display_setFont(&FreeSerifBoldItalic12pt7b);
+  Display_print("Hello, World!");
 
-  DWT_Delay_ms(1000);
+  DWT_delayMs(1000);
 
-  ST7735_fillScreen(tft, ST77XX_BLACK);
+  Display_fillScreen(ST77XX_BLACK);
 
-  for(int i = 0; i <= ST7735_height(tft); i += 4) {
-    ST7735_drawLine(tft, 0, i, ST7735_width(tft), 0, ST7735_YELLOW);
+  for(int i = 0; i <= Display_height(); i += 4) {
+    Display_drawLine(0, i, Display_width(), 0, ST7735_YELLOW);
   }
 
-  for(int i = 0; i <= ST7735_width(tft); i += 5) {
-    ST7735_drawLine(tft, i, ST7735_height(tft), ST7735_width(tft), 0, ST77XX_YELLOW);
+  for(int i = 0; i <= Display_width(); i += 5) {
+    Display_drawLine(i, Display_height(), Display_width(), 0, ST77XX_YELLOW);
   }
 
   uint32_t lastButtonState = TFTSHIELD_BUTTON_ALL;
@@ -212,13 +212,13 @@ int main(void)
   while (1)
   {
     
-    uint32_t buttons = TFTShield18_readButtons(seesaw);
+    uint32_t buttons = TFTShield18_readButtons();
 
     if(lastButtonState != buttons) {
       if(!(buttons & TFTSHIELD_BUTTON_1)) {
         printf("Button 1\n\r");
         inverted = !inverted;
-        ST7735_invertDisplay(tft, inverted);
+        Display_invertDisplay(inverted);
       }
       if(!(buttons & TFTSHIELD_BUTTON_2)) printf("Button 2\n\r");
       if(!(buttons & TFTSHIELD_BUTTON_3)) printf("Button 3\n\r");
@@ -229,10 +229,10 @@ int main(void)
       if(!(buttons & TFTSHIELD_BUTTON_IN)) printf("Button SELECT\n\r");
     }
 
-    // ST7735_fillScreen(tft, ST77XX_GREEN);
+    // Display_fillScreen(ST77XX_GREEN);
 
     lastButtonState = buttons;
-    DWT_Delay_ms(100);
+    DWT_delayMs(100);
 
     /* USER CODE END WHILE */
 

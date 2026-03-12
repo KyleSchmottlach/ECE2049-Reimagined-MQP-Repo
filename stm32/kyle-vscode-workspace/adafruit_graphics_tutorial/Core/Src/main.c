@@ -28,6 +28,8 @@
 #include "Adafruit_TFTShield18_API.h"
 #include "Adafruit_ST7735_API.h"
 
+#include "Fonts/FreeMono9pt7b.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -163,7 +165,13 @@ int main(void)
   TFTShield18_setBacklight(TFTSHIELD_BACKLIGHT_ON);
 
   Display_setRotation(1);
-  Display_fillScreen(ST77XX_GREEN);
+  // Display_fillScreen(Display_color565(200, 150, 100));
+  Display_fillScreen(ST77XX_CYAN);
+  Display_setTextColor(ST77XX_BLACK);
+  Display_setCursor(22, Display_height()/2 - 3);
+  Display_setTextSize(1, 1);
+  Display_println("Welcome to ECE 2049!");
+
 
   while (1)
   {

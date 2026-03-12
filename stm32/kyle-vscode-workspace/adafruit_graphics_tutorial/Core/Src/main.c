@@ -21,12 +21,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+#include "Adafruit_ST77xx_Macros.h"
+#include "Adafruit_TFTShield18_Macros.h"
 #include "dwt_module.h"
 #include "Adafruit_TFTShield18_API.h"
 #include "Adafruit_ST7735_API.h"
 
-#include "Fonts/FreeSerifBoldItalic12pt7b.h"
-#include "Fonts/FreeMono9pt7b.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,27 +58,22 @@ DMA_HandleTypeDef handle_GPDMA1_Channel7;
 
 /* USER CODE BEGIN PV */
 
-volatile bool spiTxDone = false;
-
-extern uint8_t test_bits[];
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_GPDMA1_Init(void);
+static void MX_I2C1_Init(void);
 static void MX_ICACHE_Init(void);
 static void MX_SPI2_Init(void);
-static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-uint8_t i2c_buffer[1] = {1};
 
 /* USER CODE END 0 */
 
@@ -93,6 +89,9 @@ int main(void)
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
+
+  /* MPU Configuration--------------------------------------------------------*/
+  MPU_Config();
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -111,12 +110,10 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_GPDMA1_Init();
+  MX_I2C1_Init();
   MX_ICACHE_Init();
   MX_SPI2_Init();
-  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-
-  DWT_Init();
 
   /* USER CODE END 2 */
 
@@ -140,7 +137,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  printf("HCLK Frequency: %u Hz\n\r", HAL_RCC_GetHCLKFreq());
+  DWT_Init();
 
   if(!DWT_CheckInitialized()) printf("DWT failed to initialize!\n\r");
 
@@ -157,91 +154,19 @@ int main(void)
 
   DWT_delayMs(100);
 
-  Display_create(&hspi2, DISP_CS_Pin, DISP_CS_GPIO_Port, DISP_DCX_SEL_Pin, DISP_DCX_SEL_GPIO_Port, &spiTxDone);
+  Display_create(&hspi2, DISP_CS_Pin, DISP_CS_GPIO_Port, DISP_DCX_SEL_Pin, DISP_DCX_SEL_GPIO_Port);
 
   Display_init(INITR_BLACKTAB);
 
   DWT_delayMs(100);
 
+  TFTShield18_setBacklight(TFTSHIELD_BACKLIGHT_ON);
+
   Display_setRotation(1);
-
   Display_fillScreen(ST77XX_GREEN);
-
-  TFTShield18_setBacklight(TFTSHIELD_BACKLIGHT_OFF);
-
-  for (int32_t i=TFTSHIELD_BACKLIGHT_OFF; i<TFTSHIELD_BACKLIGHT_ON; i+=100) {
-    TFTShield18_setBacklight(i);
-    HAL_Delay(1);
-  }
-
-  HAL_Delay(1000);
-
-  Display_fillScreen(ST77XX_BLUE);
-  DWT_delayMs(100);
-  Display_fillScreen(ST77XX_CYAN);
-  DWT_delayMs(100);
-  Display_fillScreen(ST77XX_RED);
-  DWT_delayMs(100);
-  Display_fillScreen(ST77XX_YELLOW);
-  DWT_delayMs(100);
-  Display_fillScreen(ST77XX_WHITE);
-  DWT_delayMs(100);
-
-  Display_fillCircle(Display_width()/2, Display_height()/2, 35, ST77XX_MAGENTA);
-  Display_drawCircle(Display_width()/2, Display_height()/2, 35, ST77XX_BLACK);
-  Display_fillRoundRect((Display_width()/2) - 20, (Display_height()/2) - 20, 40, 40, 4, ST77XX_CYAN);
-
-  Display_setTextColor(ST77XX_BLACK);
-  Display_setTextSize(1, 1);
-  Display_setCursor(10, 10);
-  Display_setFont(&FreeSerifBoldItalic12pt7b);
-  Display_print("Hello, World!");
-
-  DWT_delayMs(1000);
-
-  Display_fillScreen(ST77XX_BLACK);
-
-  for(int i = 0; i <= Display_height(); i += 4) {
-    Display_drawLine(0, i, Display_width(), 0, ST7735_YELLOW);
-  }
-
-  for(int i = 0; i <= Display_width(); i += 5) {
-    Display_drawLine(i, Display_height(), Display_width(), 0, ST77XX_YELLOW);
-  }
-
-  DWT_delayMs(2000);
-
-  Display_fillScreen(ST77XX_WHITE);
-
-  Display_drawXBitmapBg(0, 0, test_bits, 160, 128, ST77XX_BLACK, ST77XX_YELLOW);
-
-  uint32_t lastButtonState = TFTSHIELD_BUTTON_ALL;
-  bool inverted = false;
 
   while (1)
   {
-    
-    uint32_t buttons = TFTShield18_readButtons();
-
-    if(lastButtonState != buttons) {
-      if(!(buttons & TFTSHIELD_BUTTON_1)) {
-        printf("Button 1\n\r");
-        inverted = !inverted;
-        Display_invertDisplay(inverted);
-      }
-      if(!(buttons & TFTSHIELD_BUTTON_2)) printf("Button 2\n\r");
-      if(!(buttons & TFTSHIELD_BUTTON_3)) printf("Button 3\n\r");
-      if(!(buttons & TFTSHIELD_BUTTON_DOWN)) printf("Button DOWN\n\r");
-      if(!(buttons & TFTSHIELD_BUTTON_UP)) printf("Button UP\n\r");
-      if(!(buttons & TFTSHIELD_BUTTON_LEFT)) printf("Button LEFT\n\r");
-      if(!(buttons & TFTSHIELD_BUTTON_RIGHT)) printf("Button RIGHT\n\r");
-      if(!(buttons & TFTSHIELD_BUTTON_IN)) printf("Button SELECT\n\r");
-    }
-
-    // Display_fillScreen(ST77XX_GREEN);
-
-    lastButtonState = buttons;
-    DWT_delayMs(100);
 
     /* USER CODE END WHILE */
 
@@ -484,17 +409,17 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, Test_Pin_Pin|DISP_DCX_SEL_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(DISP_DCX_SEL_GPIO_Port, DISP_DCX_SEL_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(DISP_CS_GPIO_Port, DISP_CS_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pins : Test_Pin_Pin DISP_DCX_SEL_Pin */
-  GPIO_InitStruct.Pin = Test_Pin_Pin|DISP_DCX_SEL_Pin;
+  /*Configure GPIO pin : DISP_DCX_SEL_Pin */
+  GPIO_InitStruct.Pin = DISP_DCX_SEL_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(DISP_DCX_SEL_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : DISP_CS_Pin */
   GPIO_InitStruct.Pin = DISP_CS_Pin;
@@ -511,6 +436,40 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+ /* MPU Configuration */
+
+void MPU_Config(void)
+{
+  MPU_Region_InitTypeDef MPU_InitStruct = {0};
+  MPU_Attributes_InitTypeDef MPU_AttributesInit = {0};
+
+  /* Disables the MPU */
+  HAL_MPU_Disable();
+
+  /** Initializes and configures the Region 0 and the memory to be protected
+  */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+  MPU_InitStruct.BaseAddress = 0x08FFF000;
+  MPU_InitStruct.LimitAddress = 0x08FFFFFF;
+  MPU_InitStruct.AttributesIndex = MPU_ATTRIBUTES_NUMBER0;
+  MPU_InitStruct.AccessPermission = MPU_REGION_ALL_RO;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /** Initializes and configures the Attribute 0 and the memory to be protected
+  */
+  MPU_AttributesInit.Number = MPU_ATTRIBUTES_NUMBER0;
+  MPU_AttributesInit.Attributes = INNER_OUTER(MPU_NOT_CACHEABLE);
+
+  HAL_MPU_ConfigMemoryAttributes(&MPU_AttributesInit);
+  /* Enables the MPU */
+  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
